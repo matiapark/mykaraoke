@@ -15,10 +15,10 @@ function parseCSV(csvText) {
 }
 
 exports.handler = async function(event) {
-    const { query, page = 1 } = event.queryStringParameters;
+    // --- ✨ 버전 확인용 로그 추가 ✨ ---
+    console.log('[VERSION CHECK] Running v2 with cp949 encoding.');
 
-    // --- 🕵️ 디버깅 로그 1: 받은 검색어 확인 ---
-    console.log(`[DEBUG] Received query: "${query}", page: ${page}`);
+    const { query, page = 1 } = event.queryStringParameters;
 
     if (!query) {
         return { statusCode: 400, body: 'A search query is required.' };
@@ -31,12 +31,11 @@ exports.handler = async function(event) {
             return { statusCode: response.status, body: 'Failed to fetch Google Sheet.' };
         }
         
-        const buffer = await response.buffer(); 
+        const buffer = await response.buffer();
         const csvData = iconv.decode(buffer, 'cp949');
         
         const songList = parseCSV(csvData);
 
-        // --- 🕵️ 디버깅 로그 2: 파싱된 데이터 확인 ---
         console.log(`[DEBUG] Parsed ${songList.length} songs from CSV.`);
         if (songList.length > 0) {
           console.log('[DEBUG] First song data sample:', JSON.stringify(songList[0]));
@@ -48,7 +47,6 @@ exports.handler = async function(event) {
             (song.title && song.title.toLowerCase().includes(lowerCaseQuery))
         );
 
-        // --- 🕵️ 디버깅 로그 3: 필터링 결과 확인 ---
         console.log(`[DEBUG] Found ${filteredResults.length} matching songs.`);
 
         const itemsPerPage = 20;
