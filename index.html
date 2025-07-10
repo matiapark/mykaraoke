@@ -271,20 +271,18 @@
                 events: {
                     'onReady': () => console.log("✅ YouTube 준비됨"),
                     'onStateChange': (event) => {
-                        if (event.data === YT.PlayerState.ENDED) {
+                        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                        // 이 부분이 수정되었습니다.
+                        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                        if (event.data === YT.PlayerState.ENDED) { // 노래 재생이 끝났을 때
                             if (isStoppingManually) { isStoppingManually = false; return; }
                             
-                            if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-                            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                            if (audioContext && audioContext.state !== 'closed') audioContext.close();
-                            
-                            setTimeout(() => clearVisualizer(), 200);
-                            
-                            document.getElementById('resultArea').style.display = 'block';
-                            document.getElementById('startBtn').disabled = false;
-                            document.getElementById('stopBtn').disabled = true;
+                            // 노래방 화면을 '시작' 전 초기 상태로 되돌립니다.
+                            stopAndReset();
                         }
+                        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+                        // 수정된 부분 끝
+                        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                     }
                 }
             });
