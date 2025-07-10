@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>다이나믹 유튜브 노래방</title>
+    <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
+    <style>
+        /* 전체 페이지 스타일 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            text-align: center;
+            background: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        h2 { margin-top: 0; }
+
+        /* --- 1. 검색 화면 스타일 --- */
+        #search-view { max-width: 680px; margin: 0 auto; }
+        .search-box { display: flex; margin-bottom: 20px; }
+        #search-input {
+            flex-grow: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+            border-radius: 25px 0 0 25px;
+            outline: none;
+        }
+        #search-button {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            background: #1DB954;
+            color: white;
+            cursor: pointer;
+            border-radius: 0 25px 25px 0;
+        }
+        #search-results-container {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 100px;
+        }
+        #search-results {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+        .result-item {
+            padding: 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+        .result-item:last-child { border-bottom: none; }
+        .result-item:hover { background-color: #1DB954; }
+        .result-item .title { font-size: 1.1em; font-weight: bold; }
+        .result-item .artist { font-size: 0.9em; color: #bbb; }
+        #loadMoreBtn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        #loadMoreBtn:disabled {
+            background-color: #222;
+            cursor: not-allowed;
+        }
+
+        /* --- 2. 노래방 화면 스타일 --- */
+        #visualizer { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
+        #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
+        #ytplayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        button { padding: 12px 25px; font-size: 18px; font-weight: bold; margin: 5px; cursor: pointer; border-radius: 25px; border: none; color: white; transition: all 0.2s ease-in-out; }
+        #startBtn { background-color: #1DB954; }
+        #startBtn:hover:not(:disabled) { background-color: #1ED760; transform: scale(1.05); }
+        #startBtn:disabled { background-color: #555; cursor: not-allowed; }
+        #stopBtn { background-color: #F44336; }
+        #stopBtn:hover { background-color: #d9534f; transform: scale(1.05); }
+        #backBtn { background-color: #adb5bd; color: #212529; }
+        #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
+        #resultArea { margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="search-view">
+      <header>
+          <h2>🎤 다이나믹 노래방</h2>
+          <div class="search-box">
+              <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
+              <button id="search-button">검색</button>
+          </div>
+      </header>
+      <div id="search-results-container">
+          <ul id="search-results">
+          </ul>
+      </div>
+      <div id="load-more-container" style="text-align: center; margin-top: 20px;">
+          <button id="loadMoreBtn" style="display: none;">더 보기</button>
+      </div>
+    </div>
+
+    <div id="karaoke-view" style="display: none;">
+      <canvas id="visualizer"></canvas>
+      <div id="karaoke-container">
+        <header>
+            <h2 id="karaoke-title"></h2>
+        </header>
+
+        <div id="playerContainer">
+          <div id="ytplayer"></div>
+        </div>
+
+        <footer>
+          <div>
+            <button id="startBtn" disabled>▶ 시작</button>
+            <button id="stopBtn" disabled>⏹ 중단</button>
+            <button id="backBtn">🔍 선곡하기</button>
+          </div>
+          <div id="resultArea" style="display:none;">
+            <h4>녹음 완료!</h4>
+            <audio id="recordedAudio" controls style="width: 100%;"></audio>
+          </div>
+          <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
+        </footer>
+      </div>
+    </div>
+    
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        // --- 전역 변수 ---
+        let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
+        let recordedChunks = [];
+        let isStoppingManually = false;
+
+        // 페이지네이션 및 검색 상태 관리를 위한 변수
+        let currentQuery = '';
+        let currentPage = 1;
+        let totalPages = 1;
+
+        // --- 뷰(View) 관리 ---
+        const searchView = document.getElementById('search-view');
+        const karaokeView = document.getElementById('karaoke-view');
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const searchResultsUl = document.getElementById('search-results');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+
+        // --- 초기화 로직 ---
+        window.onload = () => {
+            canvas = document.getElementById('visualizer');
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                canvasCtx = canvas.getContext('2d');
+            }
+        };
+
+        // --- 검색 관련 이벤트 리스너 ---
+        searchButton.addEventListener('click', startNewSearch);
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                startNewSearch();
+            }
+        });
+        
+        loadMoreBtn.addEventListener('click', () => {
+            currentPage++;
+            fetchAndRenderResults();
+        });
+
+        function startNewSearch() {
+            currentQuery = searchInput.value.trim();
+            currentPage = 1;
+            if (currentQuery) {
+                searchResultsUl.innerHTML = '<li>검색 중...</li>';
+                loadMoreBtn.style.display = 'none';
+                fetchAndRenderResults();
+            }
+        }
+
+        async function fetchAndRenderResults() {
+            if (!currentQuery) return;
+
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = '불러오는 중...';
+
+            try {
+                // 우리 서버(Netlify Function)에 검색어와 페이지 번호를 보내 요청
+                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(currentQuery)}&page=${currentPage}`);
+                if (!response.ok) {
+                    throw new Error(`서버 오류: ${response.statusText}`);
+                }
+                const data = await response.json();
+
+                renderSearchResults(data.results);
+                totalPages = data.totalPages;
+
+                // 더 로드할 페이지가 있는지 확인하고 '더 보기' 버튼 상태 결정
+                if (currentPage < totalPages) {
+                    loadMoreBtn.style.display = 'block';
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.textContent = '더 보기';
+                } else {
+                    loadMoreBtn.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('Search failed:', error);
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">검색에 실패했습니다.</li>';
+                loadMoreBtn.style.display = 'none';
+            }
+        }
+
+        function renderSearchResults(results) {
+            // 1페이지일 경우, 기존 목록을 지움. 2페이지 이상이면 기존 목록에 추가.
+            if (currentPage === 1) {
+                searchResultsUl.innerHTML = '';
+            }
+
+            if (results.length === 0 && currentPage === 1) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">검색 결과가 없습니다.</li>';
+                return;
+            }
+
+            results.forEach(song => {
+                const li = document.createElement('li');
+                li.className = 'result-item';
+                li.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
+                li.addEventListener('click', () => {
+                    startKaraokeSession(song.videoId, `${song.title} - ${song.artist}`);
+                });
+                searchResultsUl.appendChild(li);
+            });
+        }
+        
+        // --- 노래방 기능 관련 코드 ---
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('ytplayer', {
+                height: '360',
+                width: '640',
+                playerVars: { controls: 0, modestbranding: 1, fs: 0 },
+                events: {
+                    'onReady': () => console.log("✅ YouTube 준비됨"),
+                    'onStateChange': (event) => {
+                        if (event.data === YT.PlayerState.ENDED) {
+                            if (isStoppingManually) { isStoppingManually = false; return; }
+                            
+                            // 노래가 자연스럽게 종료될 때의 로직
+                            if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                            
+                            setTimeout(() => clearVisualizer(), 200);
+                            
+                            document.getElementById('resultArea').style.display = 'block';
+                            document.getElementById('startBtn').disabled = false;
+                            document.getElementById('stopBtn').disabled = true;
+                        }
+                    }
+                }
+            });
+        }
+
+        function startKaraokeSession(videoId, title) {
+            searchView.style.display = 'none';
+            karaokeView.style.display = 'block';
+            document.getElementById('karaoke-title').textContent = title;
+            player.cueVideoById(videoId);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            resetState();
+        }
+
+        document.getElementById('backBtn').onclick = () => {
+            stopAndReset();
+            karaokeView.style.display = 'none';
+            searchView.style.display = 'block';
+            searchInput.value = '';
+            searchResultsUl.innerHTML = '';
+            loadMoreBtn.style.display = 'none';
+        };
+
+        document.getElementById('startBtn').onclick = startSinging;
+        document.getElementById('stopBtn').onclick = stopAndReset;
+
+        async function startSinging() {
+            isStoppingManually = false;
+            const errorMessageDiv = document.getElementById('mic-error-message');
+            errorMessageDiv.style.display = 'none';
+            try {
+                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                resetState();
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                if (audioContext && audioContext.state !== 'closed') await audioContext.close();
+                audioContext = new AudioContext();
+                pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, modelLoaded);
+                
+                mediaRecorder = new MediaRecorder(audioStream);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const resultArea = document.getElementById('resultArea');
+                    resultArea.querySelector('h4').textContent = '녹음 완료!';
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    audioPlayer.style.display = 'block';
+                    
+                    if (isStoppingManually) return;
+                    
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    audioPlayer.src = url;
+                };
+                
+                mediaRecorder.start();
+                
+                const resultArea = document.getElementById('resultArea');
+                resultArea.querySelector('h4').textContent = '녹음 중...';
+                document.getElementById('recordedAudio').style.display = 'none';
+                resultArea.style.display = 'block';
+
+                player.playVideo();
+
+            } catch (err) {
+                console.error("마이크 권한 오류:", err.name, err.message);
+                errorMessageDiv.innerHTML = "마이크 사용 권한을 허용해주세요. 브라우저 주소창의 자물쇠 아이콘을 확인하세요.";
+                errorMessageDiv.style.display = 'block';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function modelLoaded() {
+            getPitch();
+        }
+
+        function getPitch() {
+            pitch.getPitch((err, frequency) => {
+                drawVisualizer(frequency || 0);
+                // 녹음 중일 때만 계속해서 getPitch를 호출
+                if (mediaRecorder && mediaRecorder.state === "recording") {
+                    animationFrameId = requestAnimationFrame(getPitch);
+                }
+            });
+        }
+
+        function stopAndReset() {
+            if (!player || typeof player.getPlayerState !== 'function') return;
+
+            isStoppingManually = true;
+            player.stopVideo();
+
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+            }
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            resetState();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        function drawVisualizer(frequency) {
+            if (!canvasCtx) return;
+            canvasCtx.fillStyle = 'rgba(18, 18, 18, 0.2)';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            if (frequency === 0) return;
+            const barCount = 60;
+            const barWidth = canvas.width / barCount / 2;
+            const minPitch = 80, maxPitch = 500;
+            let heightRatio = (frequency - minPitch) / (maxPitch - minPitch);
+            heightRatio = Math.max(0, Math.min(1, heightRatio));
+            const hue = (1 - heightRatio) * 240;
+            const centerBarHeight = heightRatio * (canvas.height * 0.8);
+            for (let i = 0; i < barCount; i++) {
+                const distanceFromCenter = Math.abs(i - Math.floor(barCount / 2));
+                const height = Math.max(0, centerBarHeight * (1 - distanceFromCenter / (barCount / 1.8)));
+                if (height < 2) continue;
+                const x = (canvas.width / 2) + (i - barCount / 2) * (barWidth * 1.8);
+                const y = canvas.height - height;
+                canvasCtx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+                canvasCtx.fillRect(x, y, barWidth, height);
+            }
+        }
+
+        function clearVisualizer() {
+            if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function resetState() {
+            recordedChunks = [];
+            document.getElementById('resultArea').style.display = 'none';
+            const recordedAudio = document.getElementById('recordedAudio');
+            if (recordedAudio) recordedAudio.src = "";
+            clearVisualizer();
+        }
+    </script>
+</body>
+</html>
