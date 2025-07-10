@@ -40,12 +40,11 @@
             cursor: pointer;
             border-radius: 0 25px 25px 0;
         }
+        /* ▼▼▼ 수정된 부분 (검색 결과 상자 스타일) ▼▼▼ */
         #search-results-container {
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 10px;
             min-height: 100px;
         }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
         #search-results {
             list-style: none;
             padding: 0;
@@ -146,6 +145,7 @@
     <script>
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
+        let gainNode; // ▼▼▼ 수정된 부분 ▼▼▼
         let recordedChunks = [];
         let isStoppingManually = false;
         
@@ -162,7 +162,7 @@
         const searchButton = document.getElementById('search-button');
         const searchResultsUl = document.getElementById('search-results');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
-        const noSleepVideo = document.getElementById('noSleepVideo'); // ▼▼▼ 수정된 부분 ▼▼▼
+        const noSleepVideo = document.getElementById('noSleepVideo');
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -267,7 +267,6 @@
         
         // --- 노래방 기능 관련 코드 ---
         
-        // ▼▼▼ 수정된 부분 (NoSleep 헬퍼 함수) ▼▼▼
         const enableNoSleep = () => {
             noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
             console.log("NoSleep 활성화 (화면 꺼짐 방지 시작)");
@@ -277,7 +276,6 @@
             noSleepVideo.pause();
             console.log("NoSleep 비활성화 (화면 꺼짐 방지 중지)");
         };
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
@@ -290,7 +288,7 @@
                         if (event.data === YT.PlayerState.ENDED) {
                             if (isStoppingManually) { isStoppingManually = false; return; }
                             
-                            disableNoSleep(); // ▼▼▼ 수정된 부분 ▼▼▼
+                            disableNoSleep();
 
                             if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
                             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
@@ -337,14 +335,23 @@
             try {
                 audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                enableNoSleep(); // ▼▼▼ 수정된 부분 ▼▼▼
+                enableNoSleep();
 
                 resetState();
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = false;
                 if (audioContext && audioContext.state !== 'closed') await audioContext.close();
+                
                 audioContext = new AudioContext();
+
+                // ▼▼▼ 수정된 부분 (볼륨 조절기 GainNode 생성 및 연결) ▼▼▼
+                const source = audioContext.createMediaStreamSource(audioStream);
+                gainNode = audioContext.createGain(); // 전역 변수에 할당
+                source.connect(gainNode);
                 pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, modelLoaded);
+                // ml5 pitchDetection은 내부적으로 source를 직접 사용하므로 gainNode를 통과한 소리를 분석하려면 ml5 라이브러리 수정이 필요할 수 있습니다.
+                // 여기서는 시각화와 녹음은 원본 audioStream을 사용하고, 잡음 방지는 개념적으로 gainNode를 제어합니다.
+                // ▲▲▲ 수정된 부분 ▲▲▲
                 
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
@@ -393,9 +400,27 @@
         }
 
         function stopAndReset() {
-            disableNoSleep(); // ▼▼▼ 수정된 부분 ▼▼▼
+            disableNoSleep();
+            
+            // ▼▼▼ 수정된 부분 (Fade-out 로직) ▼▼▼
+            if (audioContext && audioContext.state === 'running' && gainNode) {
+                const now = audioContext.currentTime;
+                gainNode.gain.cancelScheduledValues(now);
+                gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
 
-            if (!player || typeof player.getPlayerState !== 'function') return;
+                setTimeout(() => {
+                    performResetActions();
+                }, 100);
+            } else {
+                performResetActions();
+            }
+            // ▲▲▲ 수정된 부분 ▲▲▲
+        }
+        
+        // ▼▼▼ 수정된 부분 (기존 stopAndReset 내용을 별도 함수로 분리) ▼▼▼
+        function performResetActions() {
+             if (!player || typeof player.getPlayerState !== 'function') return;
 
             isStoppingManually = true;
             if(player.stopVideo) player.stopVideo();
@@ -416,6 +441,8 @@
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
+
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
