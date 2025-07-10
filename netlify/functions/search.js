@@ -1,5 +1,4 @@
 const fetch = require('node-fetch');
-const iconv = require('iconv-lite');
 
 function parseCSV(csvText) {
     const rows = csvText.trim().split(/\r?\n/).slice(1);
@@ -15,9 +14,6 @@ function parseCSV(csvText) {
 }
 
 exports.handler = async function(event) {
-    // --- ✨ 버전 확인용 로그 추가 ✨ ---
-    console.log('[VERSION CHECK] Running v2 with cp949 encoding.');
-
     const { query, page = 1 } = event.queryStringParameters;
 
     if (!query) {
@@ -27,27 +23,18 @@ exports.handler = async function(event) {
     try {
         const response = await fetch(process.env.GOOGLE_SHEET_URL);
         if (!response.ok) {
-            console.error('[DEBUG] Failed to fetch Google Sheet.', { status: response.status });
             return { statusCode: response.status, body: 'Failed to fetch Google Sheet.' };
         }
-        
-        const buffer = await response.buffer();
-        const csvData = iconv.decode(buffer, 'cp949');
-        
+
+        // 구글이 보내주는 UTF-8 텍스트를 그대로 받습니다.
+        const csvData = await response.text();
         const songList = parseCSV(csvData);
 
-        console.log(`[DEBUG] Parsed ${songList.length} songs from CSV.`);
-        if (songList.length > 0) {
-          console.log('[DEBUG] First song data sample:', JSON.stringify(songList[0]));
-        }
-        
         const lowerCaseQuery = query.toLowerCase();
         const filteredResults = songList.filter(song =>
             (song.artist && song.artist.toLowerCase().includes(lowerCaseQuery)) ||
             (song.title && song.title.toLowerCase().includes(lowerCaseQuery))
         );
-
-        console.log(`[DEBUG] Found ${filteredResults.length} matching songs.`);
 
         const itemsPerPage = 20;
         const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
@@ -64,7 +51,6 @@ exports.handler = async function(event) {
             }),
         };
     } catch (error) {
-        console.error('[DEBUG] Function crashed:', error);
         return { statusCode: 500, body: `Server error: ${error.toString()}` };
     }
 };
