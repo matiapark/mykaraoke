@@ -98,7 +98,7 @@
 
     <div id="search-view">
       <header>
-          <h2>🎤 다이나믹 노래방</h2>
+          <h2>🎤 다이나믹 유튜브 노래방</h2>
           <div class="search-box">
               <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
               <button id="search-button">검색</button>
@@ -271,19 +271,10 @@
                 events: {
                     'onReady': () => console.log("✅ YouTube 준비됨"),
                     'onStateChange': (event) => {
+                        // 노래 재생이 자연스럽게 종료되었을 때
                         if (event.data === YT.PlayerState.ENDED) {
-                            if (isStoppingManually) { isStoppingManually = false; return; }
-                            
-                            if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-                            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                            if (audioContext && audioContext.state !== 'closed') audioContext.close();
-                            
-                            setTimeout(() => clearVisualizer(), 200);
-                            
-                            document.getElementById('resultArea').style.display = 'block';
-                            document.getElementById('startBtn').disabled = false;
-                            document.getElementById('stopBtn').disabled = true;
+                            // '선곡하기' 버튼을 누른 것과 똑같은 효과를 줌
+                            document.getElementById('backBtn').onclick();
                         }
                     }
                 }
