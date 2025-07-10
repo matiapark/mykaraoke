@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const iconv = require('iconv-lite'); // <-- 인코딩 변환 도구 불러오기
 
 function parseCSV(csvText) {
     const rows = csvText.trim().split(/\r?\n/).slice(1);
@@ -25,7 +26,14 @@ exports.handler = async function(event) {
         if (!response.ok) {
             return { statusCode: response.status, body: 'Failed to fetch Google Sheet.' };
         }
-        const csvData = await response.text();
+        
+        // --- ✨ 수정된 부분 시작 ✨ ---
+        // 구글 시트 데이터를 버퍼(원본 데이터 조각) 형태로 받음
+        const buffer = await response.buffer(); 
+        // EUC-KR 형식의 원본 데이터를 UTF-8 텍스트로 변환(디코딩)
+        const csvData = iconv.decode(buffer, 'euc-kr');
+        // --- ✨ 수정된 부분 끝 ✨ ---
+        
         const songList = parseCSV(csvData);
 
         const lowerCaseQuery = query.toLowerCase();

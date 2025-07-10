@@ -1,2 +1,4 @@
 [build]
+  # 이 command 한 줄이 모든 것을 해결합니다.
+  command = "npm install"
   functions = "netlify/functions"

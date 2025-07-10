@@ -138,18 +138,19 @@
         </footer>
       </div>
     </div>
-    
+
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
         let recordedChunks = [];
         let isStoppingManually = false;
-
-        // 페이지네이션 및 검색 상태 관리를 위한 변수
+        
+        // 페이지네이션, 검색, 디바운싱 상태 관리를 위한 변수
         let currentQuery = '';
         let currentPage = 1;
         let totalPages = 1;
+        let debounceTimer;
 
         // --- 뷰(View) 관리 ---
         const searchView = document.getElementById('search-view');
@@ -170,9 +171,18 @@
         };
 
         // --- 검색 관련 이벤트 리스너 ---
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                startNewSearch();
+            }, 500); 
+        });
+
         searchButton.addEventListener('click', startNewSearch);
+
         searchInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
+                clearTimeout(debounceTimer);
                 startNewSearch();
             }
         });
@@ -183,12 +193,19 @@
         });
 
         function startNewSearch() {
-            currentQuery = searchInput.value.trim();
+            const newQuery = searchInput.value.trim();
+            if (currentQuery === newQuery) return;
+            
+            currentQuery = newQuery;
             currentPage = 1;
+
             if (currentQuery) {
                 searchResultsUl.innerHTML = '<li>검색 중...</li>';
                 loadMoreBtn.style.display = 'none';
                 fetchAndRenderResults();
+            } else {
+                searchResultsUl.innerHTML = '';
+                loadMoreBtn.style.display = 'none';
             }
         }
 
@@ -199,7 +216,6 @@
             loadMoreBtn.textContent = '불러오는 중...';
 
             try {
-                // 우리 서버(Netlify Function)에 검색어와 페이지 번호를 보내 요청
                 const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(currentQuery)}&page=${currentPage}`);
                 if (!response.ok) {
                     throw new Error(`서버 오류: ${response.statusText}`);
@@ -209,7 +225,6 @@
                 renderSearchResults(data.results);
                 totalPages = data.totalPages;
 
-                // 더 로드할 페이지가 있는지 확인하고 '더 보기' 버튼 상태 결정
                 if (currentPage < totalPages) {
                     loadMoreBtn.style.display = 'block';
                     loadMoreBtn.disabled = false;
@@ -226,7 +241,6 @@
         }
 
         function renderSearchResults(results) {
-            // 1페이지일 경우, 기존 목록을 지움. 2페이지 이상이면 기존 목록에 추가.
             if (currentPage === 1) {
                 searchResultsUl.innerHTML = '';
             }
@@ -260,7 +274,6 @@
                         if (event.data === YT.PlayerState.ENDED) {
                             if (isStoppingManually) { isStoppingManually = false; return; }
                             
-                            // 노래가 자연스럽게 종료될 때의 로직
                             if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
                             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
                             if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -352,7 +365,6 @@
         function getPitch() {
             pitch.getPitch((err, frequency) => {
                 drawVisualizer(frequency || 0);
-                // 녹음 중일 때만 계속해서 getPitch를 호출
                 if (mediaRecorder && mediaRecorder.state === "recording") {
                     animationFrameId = requestAnimationFrame(getPitch);
                 }
@@ -363,7 +375,7 @@
             if (!player || typeof player.getPlayerState !== 'function') return;
 
             isStoppingManually = true;
-            player.stopVideo();
+            if(player.stopVideo) player.stopVideo();
 
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
