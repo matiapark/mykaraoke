@@ -32,7 +32,7 @@ exports.handler = async function(event) {
         }
         
         const buffer = await response.buffer(); 
-        const csvData = iconv.decode(buffer, 'euc-kr');
+        const csvData = iconv.decode(buffer, 'cp949');
         
         const songList = parseCSV(csvData);
 
