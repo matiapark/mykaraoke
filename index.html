@@ -146,6 +146,10 @@
         let recordedChunks = [];
         let isStoppingManually = false;
         
+        // ▼▼▼ 수정된 부분 ▼▼▼
+        let wakeLock = null; // 화면 잠금 객체를 저장할 변수
+        // ▲▲▲ 수정된 부분 ▲▲▲
+
         // 페이지네이션, 검색, 디바운싱 상태 관리를 위한 변수
         let currentQuery = '';
         let currentPage = 1;
@@ -274,11 +278,15 @@
                         if (event.data === YT.PlayerState.ENDED) {
                             if (isStoppingManually) { isStoppingManually = false; return; }
                             
-                            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                            // 이 부분이 수정되었습니다.
-                            // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                            if (player && player.stopVideo) player.stopVideo(); // 플레이어만 초기화
-                            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+                            // ▼▼▼ 수정된 부분 ▼▼▼
+                            // 노래가 끝나면 화면 잠금 해제
+                            if (wakeLock !== null) {
+                                wakeLock.release().then(() => {
+                                    wakeLock = null;
+                                    console.log('화면 잠금 해제 (노래 종료)');
+                                });
+                            }
+                            // ▲▲▲ 수정된 부분 ▲▲▲
 
                             if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
                             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
@@ -324,6 +332,19 @@
             errorMessageDiv.style.display = 'none';
             try {
                 audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // ▼▼▼ 수정된 부분 ▼▼▼
+                // 화면 잠금 요청
+                if ('wakeLock' in navigator) {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('화면 잠금 활성화');
+                    } catch (err) {
+                        console.error(`화면 잠금 실패: ${err.name}, ${err.message}`);
+                    }
+                }
+                // ▲▲▲ 수정된 부분 ▲▲▲
+
                 resetState();
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = false;
@@ -378,6 +399,16 @@
         }
 
         function stopAndReset() {
+            // ▼▼▼ 수정된 부분 ▼▼▼
+            // 중단 시 화면 잠금 해제
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                    console.log('화면 잠금 해제 (수동 중단)');
+                });
+            }
+            // ▲▲▲ 수정된 부분 ▲▲▲
+
             if (!player || typeof player.getPlayerState !== 'function') return;
 
             isStoppingManually = true;
