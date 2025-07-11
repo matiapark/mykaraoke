@@ -95,7 +95,7 @@
 
     <div id="search-view">
       <header>
-          <h2>🎤 다이나믹 노래방</h2>
+          <h2>🎤 다이나믹 유튜브 노래방</h2>
           <div class="search-box">
               <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
               <button id="search-button">검색</button>
@@ -328,7 +328,16 @@
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
             try {
-                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // ▼▼▼ 수정된 부분 (마이크 설정에 echoCancellation 등 추가) ▼▼▼
+                const constraints = {
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                };
+                audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+                // ▲▲▲ 수정된 부분 ▲▲▲
                 
                 enableNoSleep();
 
@@ -386,17 +395,14 @@
             });
         }
 
-        // ▼▼▼ 수정된 부분 ('중단' 시 잡음 방지 로직 개선) ▼▼▼
         function stopAndReset() {
             disableNoSleep();
             isStoppingManually = true;
 
-            // 1. 플레이어와 같은 시각적 요소는 즉시 중지
             if (player && typeof player.getPlayerState === 'function') {
                 player.stopVideo();
             }
 
-            // 2. 오디오 관련 모든 정리를 0.15초 뒤에 실행하여 잡음 방지
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
@@ -412,13 +418,11 @@
                     animationFrameId = null;
                 }
 
-                // 3. UI 상태를 마지막에 초기화
                 resetState();
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
             }, 150);
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
