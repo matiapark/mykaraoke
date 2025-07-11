@@ -195,7 +195,7 @@
 
         function startNewSearch() {
             const newQuery = searchInput.value.trim();
-            if (currentQuery === newQuery) return;
+            if (currentQuery === newQuery && newQuery !== '') return; // 검색어가 같으면 새 검색 방지
             
             currentQuery = newQuery;
             currentPage = 1;
@@ -209,37 +209,47 @@
                 loadMoreBtn.style.display = 'none';
             }
         }
-
+        
+        // ▼▼▼ 수정된 부분 (검색 결과 '깜빡임' 현상 방지) ▼▼▼
         async function fetchAndRenderResults() {
-            if (!currentQuery) return;
+            const queryForThisRequest = currentQuery;
+            if (!queryForThisRequest) return;
 
             loadMoreBtn.disabled = true;
             loadMoreBtn.textContent = '불러오는 중...';
 
             try {
-                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(currentQuery)}&page=${currentPage}`);
+                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(queryForThisRequest)}&page=${currentPage}`);
                 if (!response.ok) {
                     throw new Error(`서버 오류: ${response.statusText}`);
                 }
                 const data = await response.json();
 
-                renderSearchResults(data.results);
-                totalPages = data.totalPages;
+                // 서버 응답이 도착했을 때, 현재 검색어와 이 요청을 보냈을 때의 검색어가 같은지 확인
+                // 같지 않다면, 사용자가 그 사이에 다른 검색어를 입력한 것이므로 이 결과는 무시함
+                if (queryForThisRequest === currentQuery) {
+                    renderSearchResults(data.results);
+                    totalPages = data.totalPages;
 
-                if (currentPage < totalPages) {
-                    loadMoreBtn.style.display = 'block';
-                    loadMoreBtn.disabled = false;
-                    loadMoreBtn.textContent = '더 보기';
-                } else {
-                    loadMoreBtn.style.display = 'none';
+                    if (currentPage < totalPages) {
+                        loadMoreBtn.style.display = 'block';
+                        loadMoreBtn.disabled = false;
+                        loadMoreBtn.textContent = '더 보기';
+                    } else {
+                        loadMoreBtn.style.display = 'none';
+                    }
                 }
 
             } catch (error) {
-                console.error('Search failed:', error);
-                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">검색에 실패했습니다.</li>';
-                loadMoreBtn.style.display = 'none';
+                // 에러가 발생했을 때도 현재 검색어와 일치하는 경우에만 에러 메시지를 표시
+                if (queryForThisRequest === currentQuery) {
+                    console.error('Search failed:', error);
+                    searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">검색에 실패했습니다.</li>';
+                    loadMoreBtn.style.display = 'none';
+                }
             }
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function renderSearchResults(results) {
             if (currentPage === 1) {
@@ -328,7 +338,6 @@
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
             try {
-                // ▼▼▼ 수정된 부분 (마이크 설정에 echoCancellation 등 추가) ▼▼▼
                 const constraints = {
                     audio: {
                         echoCancellation: true,
@@ -337,7 +346,6 @@
                     }
                 };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-                // ▲▲▲ 수정된 부분 ▲▲▲
                 
                 enableNoSleep();
 
