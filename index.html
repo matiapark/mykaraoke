@@ -157,6 +157,46 @@
         #backBtn { background-color: #adb5bd; color: #212529; }
         #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
+        
+        /* ▼▼▼ 스마트폰 화면을 위한 스타일 추가 ▼▼▼ */
+        @media (max-width: 600px) {
+            /* 전체 검색 화면의 여백을 줄입니다 */
+            #search-view {
+                margin-top: 20px;
+                padding: 20px;
+            }
+
+            /* 제목('나의 노래방') 크기를 줄입니다 */
+            #search-view header h2 {
+                font-size: 2.2em;
+                margin-bottom: 20px;
+            }
+
+            /* 검색창과 버튼의 높이(padding)와 폰트 크기를 줄입니다 */
+            #search-input {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            #search-button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            /* 결과 목록의 높이를 줄여 더 많이 보이게 합니다 */
+            .result-item {
+                padding: 10px 15px;
+            }
+
+            .result-item .title {
+                font-size: 1em;
+            }
+
+            .result-item .artist {
+                font-size: 0.8em;
+            }
+        }
+        /* ▲▲▲ 스마트폰 화면을 위한 스타일 추가 끝 ▲▲▲ */
     </style>
 </head>
 <body>
