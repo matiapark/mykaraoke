@@ -146,10 +146,8 @@
         let recordedChunks = [];
         let isStoppingManually = false;
         
-        // ▼▼▼ 수정된 부분 (아이폰 감지용 변수) ▼▼▼
         let isIphone = false;
         let isFirstPlayOnIphone = true;
-        // ▲▲▲ 수정된 부분 ▲▲▲
         
         // 페이지네이션, 검색, 디바운싱 상태 관리를 위한 변수
         let currentQuery = '';
@@ -174,9 +172,7 @@
                 canvas.height = window.innerHeight;
                 canvasCtx = canvas.getContext('2d');
             }
-            // ▼▼▼ 수정된 부분 (아이폰 감지) ▼▼▼
             isIphone = /iPhone/.test(navigator.userAgent);
-            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -293,31 +289,49 @@
                 events: {
                     'onReady': () => console.log("✅ YouTube 준비됨"),
                     'onStateChange': (event) => {
-                        // ▼▼▼ 수정된 부분 (아이폰 첫 재생 감지) ▼▼▼
                         if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
-                            // 사용자가 직접 플레이어를 눌러 재생을 시작했으면, 첫 재생 상태를 해제
                             isFirstPlayOnIphone = false;
-                            // 안내 메시지 숨기기
                             document.getElementById('mic-error-message').style.display = 'none';
                         }
-                        // ▲▲▲ 수정된 부분 ▲▲▲
-
+                        
+                        // ▼▼▼ 수정된 부분 (노래 자연 종료 시 동작) ▼▼▼
                         if (event.data === YT.PlayerState.ENDED) {
-                            if (isStoppingManually) { isStoppingManually = false; return; }
+                            if (isStoppingManually) { 
+                                isStoppingManually = false; 
+                                return;
+                            }
                             
+                            // 1. 플레이어를 0초로 되돌려 일관성 보장
+                            if (player && player.seekTo) {
+                                player.seekTo(0, true);
+                                setTimeout(() => {
+                                    if (player.stopVideo) player.stopVideo();
+                                }, 50);
+                            }
+
+                            // 2. 화면 꺼짐 방지 해제
                             disableNoSleep();
 
-                            if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                            // 3. 녹음 중단 (이후 onstop 이벤트에서 녹음 결과 표시)
+                            if (mediaRecorder && mediaRecorder.state === "recording") {
+                                mediaRecorder.stop();
+                            }
+                            
+                            // 4. 오디오 리소스 정리
                             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
                             if (animationFrameId) cancelAnimationFrame(animationFrameId);
                             if (audioContext && audioContext.state !== 'closed') audioContext.close();
                             
                             setTimeout(() => clearVisualizer(), 200);
                             
+                            // 5. 녹음 결과 영역 표시
                             document.getElementById('resultArea').style.display = 'block';
+                            
+                            // 6. 버튼 상태 업데이트
                             document.getElementById('startBtn').disabled = false;
                             document.getElementById('stopBtn').disabled = true;
                         }
+                        // ▲▲▲ 수정된 부분 ▲▲▲
                     }
                 }
             });
@@ -331,11 +345,9 @@
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             
-            // ▼▼▼ 수정된 부분 (아이폰 첫 재생 상태 초기화) ▼▼▼
             if (isIphone) {
                 isFirstPlayOnIphone = true;
             }
-            // ▲▲▲ 수정된 부분 ▲▲▲
             resetState();
         }
 
@@ -396,16 +408,13 @@
                 resultArea.querySelector('h4').textContent = '녹음 중...';
                 document.getElementById('recordedAudio').style.display = 'none';
                 resultArea.style.display = 'block';
-                
-                // ▼▼▼ 수정된 부분 (아이폰 첫 재생 시 안내 메시지 표시) ▼▼▼
+
                 if (isIphone && isFirstPlayOnIphone) {
                     errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
                     errorMessageDiv.style.display = 'block';
-                    // playVideo()를 호출하지 않고 사용자의 직접적인 터치를 기다림
                 } else {
                     player.playVideo();
                 }
-                // ▲▲▲ 수정된 부분 ▲▲▲
 
             } catch (err) {
                 console.error("마이크 권한 오류:", err.name, err.message);
@@ -434,7 +443,10 @@
             isStoppingManually = true;
 
             if (player && typeof player.getPlayerState === 'function') {
-                player.stopVideo();
+                player.seekTo(0, true);
+                setTimeout(() => {
+                    if (player.stopVideo) player.stopVideo();
+                }, 50);
             }
 
             setTimeout(() => {
