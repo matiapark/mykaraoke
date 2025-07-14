@@ -10,72 +10,140 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             text-align: center;
-            background: #121212;
-            color: #e0e0e0;
+            background: #1a1a1a; /* 어두운 배경색 강화 */
+            color: #f0f0f0;
             margin: 0;
             padding: 20px;
             overflow-y: auto;
         }
         h2 { margin-top: 0; }
 
-        /* --- 1. 검색 화면 스타일 --- */
-        #search-view { max-width: 680px; margin: 0 auto; }
-        .search-box { display: flex; margin-bottom: 20px; }
+        /* --- 1. 화려하게 변경된 검색 화면 스타일 --- */
+        #search-view {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 35px;
+            background: linear-gradient(145deg, #2c3e50, #34495e); /* 세련된 그라데이션 */
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #search-view header h2 {
+            font-size: 3em;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5); /* 네온 효과 */
+        }
+
+        .search-box {
+            display: flex;
+            margin-bottom: 30px;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
         #search-input {
             flex-grow: 1;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid #555;
-            background: #222;
-            color: white;
-            border-radius: 25px 0 0 25px;
-            outline: none;
-        }
-        #search-button {
-            padding: 12px 20px;
-            font-size: 16px;
+            padding: 15px 25px;
+            font-size: 18px;
             border: none;
-            background: #1DB954;
-            color: white;
+            outline: none;
+            color: #333;
+            background: #f0f0f0;
+        }
+
+        #search-button {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            background: #ffc107;
+            color: #212529;
             cursor: pointer;
-            border-radius: 0 25px 25px 0;
+            transition: background-color 0.3s ease;
         }
+
+        #search-button:hover {
+            background-color: #e0a800;
+        }
+
         #search-results-container {
-            min-height: 100px;
+            min-height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         #search-results {
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: calc(100vh - 250px);
+            max-height: calc(100vh - 400px);
             overflow-y: auto;
         }
+
         .result-item {
-            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
             cursor: pointer;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-align: left;
-        }
-        .result-item:last-child { border-bottom: none; }
-        .result-item:hover { background-color: #1DB954; }
-        .result-item .title { font-size: 1.1em; font-weight: bold; }
-        .result-item .artist { font-size: 0.9em; color: #bbb; }
-        #loadMoreBtn {
-            margin-top: 15px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-        #loadMoreBtn:disabled {
-            background-color: #222;
-            cursor: not-allowed;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
 
-        /* --- 2. 노래방 화면 스타일 --- */
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: linear-gradient(90deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0));
+            transform: translateX(10px);
+        }
+
+        .result-item .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #ffffff;
+        }
+
+        .result-item .artist {
+            font-size: 1em;
+            color: #bdc3c7;
+        }
+
+        #loadMoreBtn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background-color: #ffc107;
+            color: #212529;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        #loadMoreBtn:hover:not(:disabled) {
+            background-color: #e0a800;
+            transform: scale(1.05);
+        }
+
+        #loadMoreBtn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+
+        /* --- 2. 노래방 화면 스타일 (기존 스타일 유지) --- */
         #visualizer { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
         #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
         #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
@@ -95,7 +163,7 @@
 
     <div id="search-view">
       <header>
-          <h2>🎤 다이나믹 유튜브 노래방</h2>
+          <h2>🎤 다이나믹 노래방</h2>
           <div class="search-box">
               <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
               <button id="search-button">검색</button>
@@ -294,14 +362,12 @@
                             document.getElementById('mic-error-message').style.display = 'none';
                         }
                         
-                        // ▼▼▼ 수정된 부분 (노래 자연 종료 시 동작) ▼▼▼
                         if (event.data === YT.PlayerState.ENDED) {
                             if (isStoppingManually) { 
                                 isStoppingManually = false; 
                                 return;
                             }
                             
-                            // 1. 플레이어를 0초로 되돌려 일관성 보장
                             if (player && player.seekTo) {
                                 player.seekTo(0, true);
                                 setTimeout(() => {
@@ -309,29 +375,23 @@
                                 }, 50);
                             }
 
-                            // 2. 화면 꺼짐 방지 해제
                             disableNoSleep();
 
-                            // 3. 녹음 중단 (이후 onstop 이벤트에서 녹음 결과 표시)
                             if (mediaRecorder && mediaRecorder.state === "recording") {
                                 mediaRecorder.stop();
                             }
                             
-                            // 4. 오디오 리소스 정리
                             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
                             if (animationFrameId) cancelAnimationFrame(animationFrameId);
                             if (audioContext && audioContext.state !== 'closed') audioContext.close();
                             
                             setTimeout(() => clearVisualizer(), 200);
                             
-                            // 5. 녹음 결과 영역 표시
                             document.getElementById('resultArea').style.display = 'block';
                             
-                            // 6. 버튼 상태 업데이트
                             document.getElementById('startBtn').disabled = false;
                             document.getElementById('stopBtn').disabled = true;
                         }
-                        // ▲▲▲ 수정된 부분 ▲▲▲
                     }
                 }
             });
