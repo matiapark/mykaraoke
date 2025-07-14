@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>다이나믹 유튜브 노래방</title>
+    <title>나의 노래방</title>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <style>
         /* 전체 페이지 스타일 */
@@ -47,8 +47,8 @@
 
         #search-input {
             flex-grow: 1;
-            padding: 15px 25px;
-            font-size: 18px;
+            padding: 10px 25px; /* 높이 조절 */
+            font-size: 16px; /* 폰트 크기 살짝 조절 */
             border: none;
             outline: none;
             color: #333;
@@ -56,8 +56,8 @@
         }
 
         #search-button {
-            padding: 15px 30px;
-            font-size: 18px;
+            padding: 10px 30px; /* 높이 조절 */
+            font-size: 16px; /* 폰트 크기 살짝 조절 */
             font-weight: bold;
             border: none;
             background: #ffc107;
@@ -82,14 +82,14 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: calc(100vh - 400px);
+            max-height: calc(100vh - 380px); /* 높이 계산 수정 */
             overflow-y: auto;
         }
 
         .result-item {
             display: flex;
             flex-direction: column;
-            padding: 20px;
+            padding: 12px 20px; /* 높이 조절 */
             cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-align: left;
@@ -106,14 +106,14 @@
         }
 
         .result-item .title {
-            font-size: 1.2em;
+            font-size: 1.1em; /* 폰트 크기 살짝 조절 */
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 4px; /* 간격 살짝 조절 */
             color: #ffffff;
         }
 
         .result-item .artist {
-            font-size: 1em;
+            font-size: 0.9em; /* 폰트 크기 살짝 조절 */
             color: #bdc3c7;
         }
 
@@ -163,7 +163,7 @@
 
     <div id="search-view">
       <header>
-          <h2>🎤 다이나믹 노래방</h2>
+          <h2>🎤 나의 노래방</h2>
           <div class="search-box">
               <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
               <button id="search-button">검색</button>
