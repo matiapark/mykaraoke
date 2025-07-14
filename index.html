@@ -10,7 +10,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             text-align: center;
-            background: #1a1a1a; /* 어두운 배경색 강화 */
+            background: #1a1a1a;
             color: #f0f0f0;
             margin: 0;
             padding: 20px;
@@ -23,19 +23,61 @@
             max-width: 700px;
             margin: 40px auto;
             padding: 35px;
-            background: linear-gradient(145deg, #2c3e50, #34495e); /* 세련된 그라데이션 */
+            background: linear-gradient(145deg, #2c3e50, #34495e);
             border-radius: 20px;
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        #search-view header h2 {
+        /* ▼▼▼ 수정된 부분 (제목 장식 관련 스타일) ▼▼▼ */
+        .title-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .title-wrapper h2 {
             font-size: 3em;
             font-weight: 700;
             color: #ffffff;
-            margin-bottom: 30px;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5); /* 네온 효과 */
+            margin: 0 20px; /* 좌우 여백 */
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5);
         }
+        
+        .decoration-container {
+            width: 100px; /* 장식이 퍼질 영역 */
+            height: 60px;
+            position: relative;
+        }
+
+        .star, .balloon {
+            position: absolute;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .star {
+            width: 10px;
+            height: 10px;
+            background-color: yellow; /* 기본 색상, JS로 덮어씀 */
+            clip-path: polygon(50% 0%, 61.8% 38.2%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 75%, 19.1% 100%, 30.9% 61.8%, 0% 38.2%, 38.2% 38.2%);
+        }
+
+        .balloon {
+            width: 12px;
+            height: 16px;
+            background-color: red; /* 기본 색상, JS로 덮어씀 */
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            transform: rotate(-15deg);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); opacity: 0.9; }
+            50% { transform: translateY(-10px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0px); opacity: 0.9; }
+        }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
+
 
         .search-box {
             display: flex;
@@ -47,8 +89,8 @@
 
         #search-input {
             flex-grow: 1;
-            padding: 10px 25px; /* 높이 조절 */
-            font-size: 16px; /* 폰트 크기 살짝 조절 */
+            padding: 10px 25px;
+            font-size: 16px;
             border: none;
             outline: none;
             color: #333;
@@ -56,8 +98,8 @@
         }
 
         #search-button {
-            padding: 10px 30px; /* 높이 조절 */
-            font-size: 16px; /* 폰트 크기 살짝 조절 */
+            padding: 10px 30px;
+            font-size: 16px;
             font-weight: bold;
             border: none;
             background: #ffc107;
@@ -82,14 +124,14 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: calc(100vh - 380px); /* 높이 계산 수정 */
+            max-height: calc(100vh - 420px);
             overflow-y: auto;
         }
 
         .result-item {
             display: flex;
             flex-direction: column;
-            padding: 12px 20px; /* 높이 조절 */
+            padding: 12px 20px;
             cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-align: left;
@@ -106,14 +148,14 @@
         }
 
         .result-item .title {
-            font-size: 1.1em; /* 폰트 크기 살짝 조절 */
+            font-size: 1.1em;
             font-weight: bold;
-            margin-bottom: 4px; /* 간격 살짝 조절 */
+            margin-bottom: 4px;
             color: #ffffff;
         }
 
         .result-item .artist {
-            font-size: 0.9em; /* 폰트 크기 살짝 조절 */
+            font-size: 0.9em;
             color: #bdc3c7;
         }
 
@@ -158,32 +200,27 @@
         #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
         
-        /* ▼▼▼ 스마트폰 화면을 위한 스타일 추가 ▼▼▼ */
         @media (max-width: 600px) {
-            /* 전체 검색 화면의 여백을 줄입니다 */
             #search-view {
                 margin-top: 20px;
                 padding: 20px;
             }
 
-            /* 제목('나의 노래방') 크기를 줄입니다 */
-            #search-view header h2 {
+            /* ▼▼▼ 수정된 부분 (미디어 쿼리 내) ▼▼▼ */
+            .title-wrapper h2 {
                 font-size: 2.2em;
-                margin-bottom: 20px;
+                margin: 0 10px;
             }
-
-            /* 검색창과 버튼의 높이(padding)와 폰트 크기를 줄입니다 */
-            #search-input {
-                padding: 10px 20px;
-                font-size: 14px;
+            .decoration-container {
+                width: 50px;
             }
+            /* ▲▲▲ 수정된 부분 ▲▲▲ */
 
-            #search-button {
+            #search-input, #search-button {
                 padding: 10px 20px;
                 font-size: 14px;
             }
             
-            /* 결과 목록의 높이를 줄여 더 많이 보이게 합니다 */
             .result-item {
                 padding: 10px 15px;
             }
@@ -196,14 +233,17 @@
                 font-size: 0.8em;
             }
         }
-        /* ▲▲▲ 스마트폰 화면을 위한 스타일 추가 끝 ▲▲▲ */
     </style>
 </head>
 <body>
 
     <div id="search-view">
       <header>
-          <h2>🎤 나의 노래방</h2>
+          <div class="title-wrapper">
+              <div class="decoration-container left"></div>
+              <h2>🎤 나의 노래방</h2>
+              <div class="decoration-container right"></div>
+          </div>
           <div class="search-box">
               <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
               <button id="search-button">검색</button>
@@ -257,7 +297,6 @@
         let isIphone = false;
         let isFirstPlayOnIphone = true;
         
-        // 페이지네이션, 검색, 디바운싱 상태 관리를 위한 변수
         let currentQuery = '';
         let currentPage = 1;
         let totalPages = 1;
@@ -281,6 +320,11 @@
                 canvasCtx = canvas.getContext('2d');
             }
             isIphone = /iPhone/.test(navigator.userAgent);
+
+            // ▼▼▼ 수정된 부분 (장식 생성 함수 호출) ▼▼▼
+            createDecorations('.left', 5, 3); // 왼쪽: 별 5개, 풍선 3개
+            createDecorations('.right', 5, 3); // 오른쪽: 별 5개, 풍선 3개
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -304,6 +348,29 @@
             currentPage++;
             fetchAndRenderResults();
         });
+
+        // ▼▼▼ 수정된 부분 (장식 생성 관련 함수) ▼▼▼
+        function createDecorations(containerSelector, starCount, balloonCount) {
+            const container = document.querySelector(containerSelector);
+            if (!container) return;
+
+            const colors = ['#ffc107', '#007bff', '#28a745', '#dc3545', '#17a2b8', '#6610f2'];
+            
+            const createIcon = (type) => {
+                const icon = document.createElement('div');
+                icon.className = type;
+                icon.style.left = `${Math.random() * 90}%`; // 가장자리에 너무 붙지 않게
+                icon.style.top = `${Math.random() * 80}%`;
+                icon.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                icon.style.animationDelay = `${Math.random() * 4}s`;
+                icon.style.animationDuration = `${2 + Math.random() * 2}s`; // 2~4초 사이
+                container.appendChild(icon);
+            };
+
+            for (let i = 0; i < starCount; i++) createIcon('star');
+            for (let i = 0; i < balloonCount; i++) createIcon('balloon');
+        }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function startNewSearch() {
             const newQuery = searchInput.value.trim();
