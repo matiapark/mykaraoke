@@ -469,7 +469,6 @@
         });
 
         searchButton.addEventListener('click', startNewSearch);
-
         searchInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 clearTimeout(debounceTimer);
@@ -485,7 +484,6 @@
         // --- LocalStorage 헬퍼 함수 ---
         const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
         const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
-
         const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
         const addRecentSong = (songData) => {
             let recents = getRecents();
@@ -518,18 +516,12 @@
             currentView = view;
             [showSearchBtn, showFavoritesBtn, showRecentsBtn].forEach(btn => btn.classList.remove('active'));
             document.getElementById(`show-${view}-btn`).classList.add('active');
-            
             const isSearchView = view === 'search';
             document.querySelector('.search-box').style.display = isSearchView ? 'flex' : 'none';
             loadMoreBtn.style.display = 'none';
-
-            if (isSearchView) {
-                startNewSearch();
-            } else if (view === 'favorites') {
-                renderFavorites();
-            } else if (view === 'recents') {
-                renderRecents();
-            }
+            if (isSearchView) { startNewSearch(); } 
+            else if (view === 'favorites') { renderFavorites(); } 
+            else if (view === 'recents') { renderRecents(); }
         }
         
         function renderFavorites() {
@@ -607,29 +599,23 @@
                 const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
                 const li = document.createElement('li');
                 li.className = 'result-item';
-                
                 const songInfoDiv = document.createElement('div');
                 songInfoDiv.className = 'song-info';
                 songInfoDiv.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
-                
                 const favoriteBtn = document.createElement('span');
                 favoriteBtn.className = `favorite-btn ${isFavorited ? 'favorited' : ''}`;
                 favoriteBtn.innerHTML = isFavorited ? '★' : '☆';
-                
                 li.appendChild(songInfoDiv);
                 li.appendChild(favoriteBtn);
-                
                 li.addEventListener('click', (e) => {
                     if (e.target !== favoriteBtn) {
                         startKaraokeSession(song);
                     }
                 });
-
                 favoriteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggleFavorite(song, favoriteBtn);
                 });
-
                 searchResultsUl.appendChild(li);
             });
         }
@@ -661,13 +647,15 @@
                 events: { 'onReady': () => console.log("✅ YouTube 준비됨"), 'onStateChange': onPlayerStateChange }
             });
         }
-
+        
+        // ▼▼▼ 수정된 부분 (상태 관리 로직 재정리) ▼▼▼
         function onPlayerStateChange(event) {
             if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
             if (event.data === YT.PlayerState.ENDED) {
+                if (isStoppingManually) { isStoppingManually = false; return; }
                 endSingingSession();
             }
         }
@@ -711,10 +699,7 @@
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
-                    const resultArea = document.getElementById('resultArea');
-                    resultArea.style.display = 'block';
-                    resultArea.querySelector('h4').textContent = '녹음 완료!';
-                    
+                    document.getElementById('resultArea').style.display = 'block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
 
@@ -765,14 +750,18 @@
             });
         }
         
-        // ▼▼▼ 수정된 부분 (함수 로직 재정리) ▼▼▼
         function endSingingSession() {
-            if (player && player.pauseVideo) player.pauseVideo();
+            if (player && typeof player.getPlayerState === 'function' && player.getPlayerState() !== YT.PlayerState.PAUSED) {
+                player.pauseVideo();
+            }
             disableNoSleep();
-            
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
+            } else {
+                 document.getElementById('startBtn').disabled = false;
+                 document.getElementById('stopBtn').disabled = true;
             }
+            
             if (audioContext && audioContext.state !== 'closed') audioContext.close();
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
@@ -781,8 +770,8 @@
         }
 
         function returnToSearchView() {
+            disableNoSleep();
             if (player && player.stopVideo) player.stopVideo();
-            
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 isStoppingManually = true; // onstop에서 결과 표시를 막기 위함
                 mediaRecorder.stop();
