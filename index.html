@@ -417,10 +417,9 @@
         const searchButton = document.getElementById('search-button');
         const searchResultsUl = document.getElementById('search-results');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
-        const noSleepVideo = document.getElementById('noSleepVideo');
         
-        // ▼▼▼ 수정된 부분 (변수 선언 위치 변경) ▼▼▼
-        let showSearchBtn, showFavoritesBtn, showRecentsBtn;
+        // ▼▼▼ 수정된 부분 ▼▼▼
+        let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn;
         // ▲▲▲ 수정된 부분 ▲▲▲
 
         // --- 초기화 로직 ---
@@ -433,7 +432,8 @@
             }
             isIphone = /iPhone/.test(navigator.userAgent);
 
-            // ▼▼▼ 수정된 부분 (변수 할당 및 이벤트 리스너 설정 위치 변경) ▼▼▼
+            // ▼▼▼ 수정된 부분 (DOM 요소 할당을 onload 안으로 이동) ▼▼▼
+            noSleepVideo = document.getElementById('noSleepVideo');
             showSearchBtn = document.getElementById('show-search-btn');
             showFavoritesBtn = document.getElementById('show-favorites-btn');
             showRecentsBtn = document.getElementById('show-recents-btn');
@@ -592,6 +592,8 @@
 
         function renderSongList(songs) {
             const favorites = getFavorites();
+            // innerHTML을 비우는 코드를 renderFavorites/Recents로 이동하여 중복 제거
+            searchResultsUl.innerHTML = '';
             songs.forEach(song => {
                 const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
                 const li = document.createElement('li');
@@ -607,13 +609,20 @@
                 
                 li.appendChild(songInfoDiv);
                 li.appendChild(favoriteBtn);
+                
+                // 이벤트 위임을 사용하여 li 전체에 클릭 이벤트 부여
                 li.addEventListener('click', (e) => {
-                    // 즐겨찾기 버튼을 클릭한게 아니면 노래방 시작
-                    if(e.target !== favoriteBtn) {
+                    // 클릭된 대상이 즐겨찾기 버튼 자체가 아니면 노래방 시작
+                    if (e.target !== favoriteBtn) {
                         startKaraokeSession(song);
                     }
                 });
-                favoriteBtn.addEventListener('click', () => toggleFavorite(song, favoriteBtn));
+
+                // 즐겨찾기 버튼에는 별도의 클릭 이벤트 부여
+                favoriteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // li로 이벤트 전파 중단
+                    toggleFavorite(song, favoriteBtn);
+                });
 
                 searchResultsUl.appendChild(li);
             });
