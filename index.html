@@ -417,6 +417,7 @@
         const searchButton = document.getElementById('search-button');
         const searchResultsUl = document.getElementById('search-results');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
+        
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn;
 
         // --- 초기화 로직 ---
@@ -438,25 +439,22 @@
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
             showRecentsBtn.addEventListener('click', () => switchView('recents'));
 
-            createDecorations('.left', 5, 3);
-            createDecorations('.right', 5, 3);
-            
-            // ▼▼▼ 수정된 부분 (슬립 모드에서 복귀 시 기능 재개) ▼▼▼
+            // 슬립모드 복귀 시 자동 재개 기능 추가
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    if (audioContext && audioContext.state === 'suspended') {
-                        audioContext.resume().then(() => {
-                            console.log("오디오 컨텍스트가 재개되었습니다.");
-                        });
-                    }
-                    if (player && typeof player.getPlayerState === 'function') {
-                        if (karaokeView.style.display === 'block' && player.getPlayerState() === YT.PlayerState.PAUSED) {
-                             player.playVideo();
+                if (document.visibilityState === 'visible' && 
+                    karaokeView.style.display !== 'none' && 
+                    player && typeof player.getPlayerState === 'function') {
+                    if (player.getPlayerState() === YT.PlayerState.PAUSED) {
+                        player.playVideo();
+                        if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                            startSinging();
                         }
                     }
                 }
             });
-            // ▲▲▲ 수정된 부분 ▲▲▲
+
+            createDecorations('.left', 5, 3);
+            createDecorations('.right', 5, 3);
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -604,7 +602,7 @@
 
         function renderSongList(songs) {
             const favorites = getFavorites();
-            if(currentPage === 1 || currentView !== 'search') searchResultsUl.innerHTML = '';
+            searchResultsUl.innerHTML = '';
             songs.forEach(song => {
                 const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
                 const li = document.createElement('li');
@@ -671,7 +669,19 @@
             }
             if (event.data === YT.PlayerState.ENDED) {
                 if (isStoppingManually) { isStoppingManually = false; return; }
-                endSingingSession();
+                if (player && player.seekTo) {
+                    player.seekTo(0, true);
+                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+                }
+                disableNoSleep();
+                if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                setTimeout(() => clearVisualizer(), 200);
+                document.getElementById('resultArea').style.display = 'block';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
             }
         }
 
@@ -693,8 +703,16 @@
             document.getElementById('headphone-guide').style.display = 'flex';
         }
 
-        document.getElementById('backBtn').onclick = returnToSearchView;
-        document.getElementById('stopBtn').onclick = endSingingSession;
+        document.getElementById('backBtn').onclick = () => {
+            stopAndReset();
+            karaokeView.style.display = 'none';
+            searchView.style.display = 'block';
+            searchInput.value = '';
+            switchView('search');
+        };
+
+        document.getElementById('startBtn').onclick = startSinging;
+        document.getElementById('stopBtn').onclick = stopAndReset;
 
         async function startSinging() {
             document.getElementById('headphone-guide').style.display = 'none';
@@ -715,16 +733,11 @@
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
                     const resultArea = document.getElementById('resultArea');
-                    resultArea.style.display = 'block';
                     resultArea.querySelector('h4').textContent = '녹음 완료!';
-                    document.getElementById('startBtn').disabled = false;
-                    document.getElementById('stopBtn').disabled = true;
-
-                    if (isStoppingManually) return;
-
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
+                    if (isStoppingManually) return;
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
                     audioPlayer.src = url;
@@ -740,9 +753,7 @@
                 const resultArea = document.getElementById('resultArea');
                 resultArea.querySelector('h4').textContent = '녹음 중...';
                 document.getElementById('recordedAudio').style.display = 'none';
-                document.getElementById('downloadBtn').style.display = 'none';
                 resultArea.style.display = 'block';
-
                 if (isIphone && isFirstPlayOnIphone) {
                     errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
                     errorMessageDiv.style.display = 'block';
@@ -767,44 +778,24 @@
                 }
             });
         }
-        
-        function endSingingSession() {
-            if (isStoppingManually) return;
-            isStoppingManually = true;
-            
+
+        function stopAndReset() {
             disableNoSleep();
-            if (player && typeof player.getPlayerState === 'function' && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                player.pauseVideo();
+            isStoppingManually = true;
+            if (player && typeof player.getPlayerState === 'function') {
+                player.seekTo(0, true);
+                setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
             }
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-            if (audioContext && audioContext.state !== 'closed') {
-                audioContext.close().then(() => {
-                    audioContext = null;
-                });
-            }
-            if(animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-        }
-
-        function returnToSearchView() {
-            if (player && player.stopVideo) player.stopVideo();
-            
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.onstop = null;
-                mediaRecorder.stop();
-            }
-            if (audioContext && audioContext.state !== 'closed') audioContext.close();
-            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-
-            karaokeView.style.display = 'none';
-            searchView.style.display = 'block';
-            searchInput.value = '';
-            switchView('search');
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+                resetState();
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('headphone-guide').style.display = 'flex';
+            }, 150);
         }
 
         function drawVisualizer(frequency) {
