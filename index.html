@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>나의 노래방</title>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3940256099942944"
-     crossorigin="anonymous"></script>
     <style>
         /* 전체 페이지 스타일 */
         body {
@@ -276,15 +274,6 @@
             background-color: #0056b3;
         }
         
-        /* ▼▼▼ 수정된 부분 (광고 컨테이너 스타일) ▼▼▼ */
-        #ad-container-bottom {
-            width: 100%;
-            max-width: 680px;
-            min-height: 100px;
-            margin: 20px auto 0;
-        }
-        /* ▲▲▲ 수정된 부분 ▲▲▲ */
-        
         @media (max-width: 600px) {
             #search-view {
                 margin-top: 20px;
@@ -393,18 +382,6 @@
             <h4>녹음 완료!</h4>
             <audio id="recordedAudio" controls style="width: 100%;"></audio>
             <button id="downloadBtn" style="display: none;">💾 다운로드</button>
-
-            <div id="ad-container-bottom">
-                <ins class="adsbygoogle"
-                     style="display:block"
-                     data-ad-client="ca-pub-3940256099942944"
-                     data-ad-slot="6300978111"
-                     data-ad-format="auto"
-                     data-full-width-responsive="true"></ins>
-                <script>
-                     (adsbygoogle = window.adsbygoogle || []).push({});
-                </script>
-            </div>
           </div>
           <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
         </footer>
@@ -463,6 +440,29 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
+
+            // ▼▼▼ 수정된 부분 (슬립 모드에서 복귀 시 기능 재개) ▼▼▼
+            document.addEventListener('visibilitychange', () => {
+                // 페이지가 다시 화면에 보이게 될 때
+                if (document.visibilityState === 'visible') {
+                    
+                    // 1. 멈춰있던 오디오 컨텍스트(음정 분석 엔진)를 다시 시작시킵니다.
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log("오디오 컨텍스트가 재개되었습니다.");
+                        });
+                    }
+
+                    // 2. 일시정지된 유튜브 영상을 다시 재생시킵니다.
+                    if (player && typeof player.getPlayerState === 'function') {
+                        // 노래방 화면이고, 영상이 일시정지 상태일 때만 재생
+                        if (karaokeView.style.display === 'block' && player.getPlayerState() === YT.PlayerState.PAUSED) {
+                             player.playVideo();
+                        }
+                    }
+                }
+            });
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -675,29 +675,21 @@
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
-            if (event.data === YT.PlayerState.ENDED || (isStoppingManually && event.data === YT.PlayerState.PAUSED)) {
-                if (isStoppingManually && event.data !== YT.PlayerState.PAUSED) return;
-
-                if(isStoppingManually) {
-                    isStoppingManually = false;
-                } else {
-                    if (player && player.seekTo) {
-                        player.seekTo(0, true);
-                        setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
-                    }
+            if (event.data === YT.PlayerState.ENDED) {
+                if (isStoppingManually) { isStoppingManually = false; return; }
+                if (player && player.seekTo) {
+                    player.seekTo(0, true);
+                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
                 }
-                
                 disableNoSleep();
                 if (mediaRecorder && mediaRecorder.state === "recording") {
                     mediaRecorder.stop();
-                } else {
-                    document.getElementById('resultArea').style.display = 'block';
                 }
                 if (audioStream) audioStream.getTracks().forEach(track => track.stop());
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 if (audioContext && audioContext.state !== 'closed') audioContext.close();
                 setTimeout(() => clearVisualizer(), 200);
-                
+                document.getElementById('resultArea').style.display = 'block';
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
             }
@@ -742,7 +734,8 @@
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
-                    document.getElementById('resultArea').style.display = 'block';
+                    const resultArea = document.getElementById('resultArea');
+                    resultArea.querySelector('h4').textContent = '녹음 완료!';
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
@@ -791,15 +784,27 @@
         function stopAndReset(goBackToSearch = false) {
             disableNoSleep();
             isStoppingManually = true;
-
-            if (goBackToSearch) {
-                 if (player && player.stopVideo) player.stopVideo();
-                 karaokeView.style.display = 'none';
-                 searchView.style.display = 'block';
-                 searchInput.value = '';
-                 switchView('search');
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            }
+            // 중단 시에는 녹음을 멈추고 결과를 표시
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
             } else {
-                if (player && player.pauseVideo) player.pauseVideo();
+                 // 녹음이 진행중이 아니었다면(예: 시작 전) 바로 UI 리셋
+                if(goBackToSearch) {
+                    karaokeView.style.display = 'none';
+                    searchView.style.display = 'block';
+                    searchInput.value = '';
+                    switchView('search');
+                } else {
+                    player.seekTo(0, true);
+                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+                    resetState();
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('headphone-guide').style.display = 'flex';
+                }
             }
         }
 
