@@ -195,15 +195,6 @@
         #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
         
-        /* ▼▼▼ 수정된 부분 (가사 확대 안내 문구 스타일) ▼▼▼ */
-        #lyrics-zoom-guide {
-            color: #e0e0e0;
-            font-size: 14px;
-            margin: 15px 0;
-            opacity: 0.8;
-        }
-        /* ▲▲▲ 수정된 부분 ▲▲▲ */
-
         @media (max-width: 600px) {
             #search-view {
                 margin-top: 20px;
@@ -233,10 +224,6 @@
 
             .result-item .artist {
                 font-size: 0.8em;
-            }
-
-            #lyrics-zoom-guide { /* 스마트폰에서 폰트 크기 살짝 조정 */
-                font-size: 12px;
             }
         }
     </style>
@@ -275,9 +262,10 @@
           <div id="ytplayer"></div>
         </div>
         
-        <div id="lyrics-zoom-guide">
+        <div id="lyrics-zoom-guide" style="color: #e0e0e0; font-size: 14px; margin: 15px 0; opacity: 0.8;">
             💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
         </div>
+
         <footer>
           <div>
             <button id="startBtn" disabled>▶ 시작</button>
@@ -336,14 +324,9 @@
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
             
-            const playInitialSound = () => {
-                const startSound = document.getElementById('startSfx');
-                if (startSound) {
-                    startSound.play().catch(e => console.error("초기 효과음 재생 실패:", e));
-                }
-            };
-            document.body.addEventListener('click', playInitialSound, { once: true });
-            document.body.addEventListener('touchstart', playInitialSound, { once: true });
+            // ▼▼▼ 수정된 부분 (첫 인터랙션 시 효과음 재생 로직 삭제) ▼▼▼
+            // 더 이상 이 부분에 효과음 코드가 없습니다.
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -519,7 +502,14 @@
             });
         }
 
+        // ▼▼▼ 수정된 부분 (노래 선택 시 효과음 재생) ▼▼▼
         function startKaraokeSession(videoId, title) {
+            const startSound = document.getElementById('startSfx');
+            if (startSound) {
+                startSound.currentTime = 0;
+                startSound.play().catch(e => console.error("효과음 재생 실패:", e));
+            }
+            
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = title;
@@ -532,6 +522,7 @@
             }
             resetState();
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         document.getElementById('backBtn').onclick = () => {
             stopAndReset();
