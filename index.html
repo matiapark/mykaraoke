@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>나의 노래방</title>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3940256099942944"
-     crossorigin="anonymous"></script>
     <style>
         /* 전체 페이지 스타일 */
         body {
@@ -442,6 +440,23 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
+
+            // ▼▼▼ 수정된 부분 (슬립 모드에서 복귀 시 기능 재개) ▼▼▼
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log("오디오 컨텍스트가 재개되었습니다.");
+                        });
+                    }
+                    if (player && typeof player.getPlayerState === 'function') {
+                        if (karaokeView.style.display === 'block' && player.getPlayerState() === YT.PlayerState.PAUSED) {
+                             player.playVideo();
+                        }
+                    }
+                }
+            });
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -638,14 +653,8 @@
         }
         
         // --- 노래방 기능 관련 코드 ---
-        const enableNoSleep = () => {
-            console.log("화면 꺼짐 방지: 활성화 시도...");
-            noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
-        };
-        const disableNoSleep = () => {
-            console.log("화면 꺼짐 방지: 비활성화.");
-            noSleepVideo.pause();
-        };
+        const enableNoSleep = () => noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
+        const disableNoSleep = () => noSleepVideo.pause();
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
@@ -654,15 +663,29 @@
                 events: { 'onReady': () => console.log("✅ YouTube 준비됨"), 'onStateChange': onPlayerStateChange }
             });
         }
-        
-        // ▼▼▼ 수정된 부분 ('중단', '종료' 로직 통합) ▼▼▼
+
         function onPlayerStateChange(event) {
             if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
             if (event.data === YT.PlayerState.ENDED) {
-                endSingingSession(false); // 자연 종료
+                if (isStoppingManually) { isStoppingManually = false; return; }
+                if (player && player.seekTo) {
+                    player.seekTo(0, true);
+                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+                }
+                disableNoSleep();
+                if (mediaRecorder && mediaRecorder.state === "recording") {
+                    mediaRecorder.stop();
+                }
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                setTimeout(() => clearVisualizer(), 200);
+                document.getElementById('resultArea').style.display = 'block';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
             }
         }
 
@@ -685,7 +708,7 @@
         }
 
         document.getElementById('backBtn').onclick = () => stopAndReset();
-        document.getElementById('stopBtn').onclick = () => endSingingSession(true);
+        document.getElementById('stopBtn').onclick = stopAndReset;
 
         async function startSinging() {
             document.getElementById('headphone-guide').style.display = 'none';
@@ -705,14 +728,12 @@
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
-                    document.getElementById('resultArea').style.display = 'block';
-                    document.getElementById('startBtn').disabled = false;
-                    document.getElementById('stopBtn').disabled = true;
-
+                    const resultArea = document.getElementById('resultArea');
+                    resultArea.querySelector('h4').textContent = '녹음 완료!';
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
-                    
+                    if (isStoppingManually) return;
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
                     audioPlayer.src = url;
@@ -723,23 +744,12 @@
                         a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
                         document.body.appendChild(a); a.click(); document.body.removeChild(a);
                     };
-
-                    if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                    if (animationFrameId) {
-                        cancelAnimationFrame(animationFrameId);
-                        animationFrameId = null;
-                    }
-                     if (audioContext && audioContext.state !== 'closed') {
-                        audioContext.close();
-                    }
                 };
                 mediaRecorder.start();
                 const resultArea = document.getElementById('resultArea');
                 resultArea.querySelector('h4').textContent = '녹음 중...';
                 document.getElementById('recordedAudio').style.display = 'none';
-                document.getElementById('downloadBtn').style.display = 'none';
                 resultArea.style.display = 'block';
-
                 if (isIphone && isFirstPlayOnIphone) {
                     errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
                     errorMessageDiv.style.display = 'block';
@@ -764,26 +774,28 @@
                 }
             });
         }
-        
-        function endSingingSession(manual) {
-            isStoppingManually = manual;
-            disableNoSleep();
-            if (player) {
-                manual ? player.pauseVideo() : player.stopVideo();
-            }
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-        }
 
         function stopAndReset() {
-            if (player && player.stopVideo) player.stopVideo();
-            karaokeView.style.display = 'none';
-            searchView.style.display = 'block';
-            searchInput.value = '';
-            switchView('search');
+            disableNoSleep();
+            isStoppingManually = true;
+
+            if (player && typeof player.getPlayerState === 'function') {
+                player.seekTo(0, true);
+                setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+            }
+
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+
+                resetState();
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('headphone-guide').style.display = 'flex';
+            }, 150);
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
