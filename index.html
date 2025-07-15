@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>나의 노래방</title>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3940256099942944"
+     crossorigin="anonymous"></script>
     <style>
         /* 전체 페이지 스타일 */
         body {
@@ -274,6 +276,40 @@
             background-color: #0056b3;
         }
         
+        #karaoke-layout-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .ad-container-side {
+            display: none;
+            width: 160px;
+            height: 600px;
+            flex-shrink: 0;
+        }
+
+        #ad-container-bottom {
+            display: block;
+            width: 100%;
+            max-width: 680px;
+            min-height: 100px;
+            margin: 20px auto 0;
+        }
+
+        @media (min-width: 1200px) {
+            .ad-container-side {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #777;
+            }
+            #ad-container-bottom {
+                display: none;
+            }
+        }
+        
         @media (max-width: 600px) {
             #search-view {
                 margin-top: 20px;
@@ -354,37 +390,78 @@
 
     <div id="karaoke-view" style="display: none;">
       <canvas id="visualizer"></canvas>
-      <div id="karaoke-container">
-        <header>
-            <h2 id="karaoke-title"></h2>
-        </header>
 
-        <div id="playerContainer">
-          <div id="ytplayer"></div>
-        </div>
+      <div id="karaoke-layout-container">
         
-        <div id="lyrics-zoom-guide">
-            💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
+        <div id="ad-container-left" class="ad-container-side">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-3940256099942944"
+                 data-ad-slot="6300978111"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+            </div>
+
+        <div id="karaoke-container">
+          <header>
+              <h2 id="karaoke-title"></h2>
+          </header>
+
+          <div id="playerContainer">
+            <div id="ytplayer"></div>
+          </div>
+          
+          <div id="lyrics-zoom-guide">
+              💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
+          </div>
+
+          <div id="headphone-guide">
+              <span class="guide-icon">🎧</span>
+              <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
+          </div>
+
+          <footer>
+            <div>
+              <button id="startBtn" disabled>▶ 시작</button>
+              <button id="stopBtn" disabled>⏹ 중단</button>
+              <button id="backBtn">🔍 선곡하기</button>
+            </div>
+            <div id="resultArea" style="display:none;">
+              <h4>녹음 완료!</h4>
+              <audio id="recordedAudio" controls style="width: 100%;"></audio>
+              <button id="downloadBtn" style="display: none;">💾 다운로드</button>
+            </div>
+            <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
+            
+            <div id="ad-container-bottom">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-3940256099942944"
+                     data-ad-slot="6300978111"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script>
+                     (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
+                </div>
+          </footer>
         </div>
 
-        <div id="headphone-guide">
-            <span class="guide-icon">🎧</span>
-            <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
-        </div>
+        <div id="ad-container-right" class="ad-container-side">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-3940256099942944"
+                 data-ad-slot="6300978111"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+            </div>
 
-        <footer>
-          <div>
-            <button id="startBtn" disabled>▶ 시작</button>
-            <button id="stopBtn" disabled>⏹ 중단</button>
-            <button id="backBtn">🔍 선곡하기</button>
-          </div>
-          <div id="resultArea" style="display:none;">
-            <h4>녹음 완료!</h4>
-            <audio id="recordedAudio" controls style="width: 100%;"></audio>
-            <button id="downloadBtn" style="display: none;">💾 다운로드</button>
-          </div>
-          <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
-        </footer>
       </div>
     </div>
 
@@ -417,10 +494,7 @@
         const searchButton = document.getElementById('search-button');
         const searchResultsUl = document.getElementById('search-results');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
-        
-        // ▼▼▼ 수정된 부분 ▼▼▼
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn;
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -432,7 +506,6 @@
             }
             isIphone = /iPhone/.test(navigator.userAgent);
 
-            // ▼▼▼ 수정된 부분 (DOM 요소 할당을 onload 안으로 이동) ▼▼▼
             noSleepVideo = document.getElementById('noSleepVideo');
             showSearchBtn = document.getElementById('show-search-btn');
             showFavoritesBtn = document.getElementById('show-favorites-btn');
@@ -441,7 +514,6 @@
             showSearchBtn.addEventListener('click', () => switchView('search'));
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
             showRecentsBtn.addEventListener('click', () => switchView('recents'));
-            // ▲▲▲ 수정된 부분 ▲▲▲
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
@@ -592,8 +664,7 @@
 
         function renderSongList(songs) {
             const favorites = getFavorites();
-            // innerHTML을 비우는 코드를 renderFavorites/Recents로 이동하여 중복 제거
-            searchResultsUl.innerHTML = '';
+            if(currentPage === 1 || currentView !== 'search') searchResultsUl.innerHTML = '';
             songs.forEach(song => {
                 const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
                 const li = document.createElement('li');
@@ -610,17 +681,14 @@
                 li.appendChild(songInfoDiv);
                 li.appendChild(favoriteBtn);
                 
-                // 이벤트 위임을 사용하여 li 전체에 클릭 이벤트 부여
                 li.addEventListener('click', (e) => {
-                    // 클릭된 대상이 즐겨찾기 버튼 자체가 아니면 노래방 시작
                     if (e.target !== favoriteBtn) {
                         startKaraokeSession(song);
                     }
                 });
 
-                // 즐겨찾기 버튼에는 별도의 클릭 이벤트 부여
                 favoriteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // li로 이벤트 전파 중단
+                    e.stopPropagation();
                     toggleFavorite(song, favoriteBtn);
                 });
 
