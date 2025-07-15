@@ -319,16 +319,9 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
-
-            // ▼▼▼ 수정된 부분 (첫 사용자 인터랙션 시 효과음 1회 재생) ▼▼▼
-            const playInitialSound = () => {
-                const startSound = document.getElementById('startSfx');
-                if (startSound) {
-                    startSound.play().catch(e => console.error("초기 효과음 재생 실패:", e));
-                }
-            };
-            document.body.addEventListener('click', playInitialSound, { once: true });
-            document.body.addEventListener('touchstart', playInitialSound, { once: true });
+            
+            // ▼▼▼ 수정된 부분 (첫 인터랙션 시 효과음 재생 로직 삭제) ▼▼▼
+            // 이 부분의 코드를 삭제합니다.
             // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
@@ -505,8 +498,14 @@
             });
         }
 
-        // ▼▼▼ 수정된 부분 (기존 효과음 재생 코드 삭제) ▼▼▼
+        // ▼▼▼ 수정된 부분 (노래 선택 시 효과음 재생) ▼▼▼
         function startKaraokeSession(videoId, title) {
+            const startSound = document.getElementById('startSfx');
+            if (startSound) {
+                startSound.currentTime = 0;
+                startSound.play().catch(e => console.error("효과음 재생 실패:", e));
+            }
+            
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = title;
