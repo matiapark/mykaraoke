@@ -441,7 +441,6 @@
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
             
-            // ▼▼▼ 수정된 부분 (슬립 모드에서 복귀 시 기능 재개) ▼▼▼
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
                     if (audioContext && audioContext.state === 'suspended') {
@@ -456,7 +455,6 @@
                     }
                 }
             });
-            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -670,7 +668,7 @@
                 document.getElementById('mic-error-message').style.display = 'none';
             }
             if (event.data === YT.PlayerState.ENDED) {
-                stopAndShowResult();
+                endSingingSession();
             }
         }
 
@@ -693,7 +691,7 @@
         }
 
         document.getElementById('backBtn').onclick = returnToSearchView;
-        document.getElementById('stopBtn').onclick = stopAndShowResult;
+        document.getElementById('stopBtn').onclick = endSingingSession;
 
         async function startSinging() {
             document.getElementById('headphone-guide').style.display = 'none';
@@ -715,6 +713,8 @@
                 mediaRecorder.onstop = () => {
                     const resultArea = document.getElementById('resultArea');
                     resultArea.style.display = 'block';
+                    resultArea.querySelector('h4').textContent = '녹음 완료!';
+                    
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
 
@@ -765,11 +765,18 @@
             });
         }
         
-        function stopAndShowResult() {
-            if (player) player.pauseVideo();
+        // ▼▼▼ 수정된 부분 (함수 로직 재정리) ▼▼▼
+        function endSingingSession() {
+            if (player && player.pauseVideo) player.pauseVideo();
             disableNoSleep();
+            
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
+            }
+            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
             }
         }
 
@@ -777,7 +784,7 @@
             if (player && player.stopVideo) player.stopVideo();
             
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.onstop = null;
+                isStoppingManually = true; // onstop에서 결과 표시를 막기 위함
                 mediaRecorder.stop();
             }
             if (audioContext && audioContext.state !== 'closed') audioContext.close();
@@ -789,6 +796,7 @@
             searchInput.value = '';
             switchView('search');
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
