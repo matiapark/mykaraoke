@@ -440,7 +440,7 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
-            
+
             // ▼▼▼ 수정된 부분 (슬립 모드에서 복귀 시 기능 재개) ▼▼▼
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
@@ -671,21 +671,11 @@
             }
             if (event.data === YT.PlayerState.ENDED) {
                 if (isStoppingManually) { isStoppingManually = false; return; }
-                if (player && player.seekTo) {
-                    player.seekTo(0, true);
-                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
-                }
+                
                 disableNoSleep();
-                if (mediaRecorder && mediaRecorder.state === "recording") {
-                    mediaRecorder.stop();
-                }
-                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                if (audioContext && audioContext.state !== 'closed') audioContext.close();
-                setTimeout(() => clearVisualizer(), 200);
-                document.getElementById('resultArea').style.display = 'block';
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
+                if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                
+                // 자연 종료 시에는 나머지 리소스 정리가 onstop 핸들러에서 이루어질 수 있도록 여기서 바로 닫지 않음
             }
         }
 
@@ -733,7 +723,7 @@
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
-                    if (isStoppingManually) return;
+                    
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
                     audioPlayer.src = url;
@@ -744,6 +734,18 @@
                         a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
                         document.body.appendChild(a); a.click(); document.body.removeChild(a);
                     };
+
+                    if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
+                     if (audioContext && audioContext.state !== 'closed') {
+                        audioContext.close();
+                    }
+                    setTimeout(() => clearVisualizer(), 200);
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
                 };
                 mediaRecorder.start();
                 const resultArea = document.getElementById('resultArea');
@@ -751,6 +753,7 @@
                 document.getElementById('recordedAudio').style.display = 'none';
                 document.getElementById('downloadBtn').style.display = 'none';
                 resultArea.style.display = 'block';
+
                 if (isIphone && isFirstPlayOnIphone) {
                     errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
                     errorMessageDiv.style.display = 'block';
@@ -779,20 +782,28 @@
         function stopAndReset() {
             disableNoSleep();
             isStoppingManually = true;
+
             if (player && typeof player.getPlayerState === 'function') {
-                player.seekTo(0, true);
-                setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+                player.stopVideo();
             }
-            setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            } else {
+                // 녹음중이 아닐때도 리소스 정리
                 if (audioContext && audioContext.state !== 'closed') audioContext.close();
                 if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-                resetState();
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                document.getElementById('headphone-guide').style.display = 'flex';
-            }, 150);
+            }
+
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            resetState();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('headphone-guide').style.display = 'flex';
         }
 
         function drawVisualizer(frequency) {
