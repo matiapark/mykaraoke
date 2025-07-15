@@ -276,39 +276,14 @@
             background-color: #0056b3;
         }
         
-        #karaoke-layout-container {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 20px;
-        }
-
-        .ad-container-side {
-            display: none;
-            width: 160px;
-            height: 600px;
-            flex-shrink: 0;
-        }
-
+        /* ▼▼▼ 수정된 부분 (광고 컨테이너 스타일) ▼▼▼ */
         #ad-container-bottom {
-            display: block;
             width: 100%;
             max-width: 680px;
             min-height: 100px;
             margin: 20px auto 0;
         }
-
-        @media (min-width: 1200px) {
-            .ad-container-side {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #777;
-            }
-            #ad-container-bottom {
-                display: none;
-            }
-        }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
         
         @media (max-width: 600px) {
             #search-view {
@@ -390,52 +365,35 @@
 
     <div id="karaoke-view" style="display: none;">
       <canvas id="visualizer"></canvas>
+      <div id="karaoke-container">
+        <header>
+            <h2 id="karaoke-title"></h2>
+        </header>
 
-      <div id="karaoke-layout-container">
+        <div id="playerContainer">
+          <div id="ytplayer"></div>
+        </div>
         
-        <div id="ad-container-left" class="ad-container-side">
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-client="ca-pub-3940256099942944"
-                 data-ad-slot="6300978111"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
-            <script>
-                 (adsbygoogle = window.adsbygoogle || []).push({});
-            </script>
-            </div>
+        <div id="lyrics-zoom-guide">
+            💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
+        </div>
 
-        <div id="karaoke-container">
-          <header>
-              <h2 id="karaoke-title"></h2>
-          </header>
+        <div id="headphone-guide">
+            <span class="guide-icon">🎧</span>
+            <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
+        </div>
 
-          <div id="playerContainer">
-            <div id="ytplayer"></div>
+        <footer>
+          <div>
+            <button id="startBtn" disabled>▶ 시작</button>
+            <button id="stopBtn" disabled>⏹ 중단</button>
+            <button id="backBtn">🔍 선곡하기</button>
           </div>
-          
-          <div id="lyrics-zoom-guide">
-              💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
-          </div>
+          <div id="resultArea" style="display:none;">
+            <h4>녹음 완료!</h4>
+            <audio id="recordedAudio" controls style="width: 100%;"></audio>
+            <button id="downloadBtn" style="display: none;">💾 다운로드</button>
 
-          <div id="headphone-guide">
-              <span class="guide-icon">🎧</span>
-              <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
-          </div>
-
-          <footer>
-            <div>
-              <button id="startBtn" disabled>▶ 시작</button>
-              <button id="stopBtn" disabled>⏹ 중단</button>
-              <button id="backBtn">🔍 선곡하기</button>
-            </div>
-            <div id="resultArea" style="display:none;">
-              <h4>녹음 완료!</h4>
-              <audio id="recordedAudio" controls style="width: 100%;"></audio>
-              <button id="downloadBtn" style="display: none;">💾 다운로드</button>
-            </div>
-            <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
-            
             <div id="ad-container-bottom">
                 <ins class="adsbygoogle"
                      style="display:block"
@@ -446,22 +404,10 @@
                 <script>
                      (adsbygoogle = window.adsbygoogle || []).push({});
                 </script>
-                </div>
-          </footer>
-        </div>
-
-        <div id="ad-container-right" class="ad-container-side">
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-client="ca-pub-3940256099942944"
-                 data-ad-slot="6300978111"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
-            <script>
-                 (adsbygoogle = window.adsbygoogle || []).push({});
-            </script>
             </div>
-
+          </div>
+          <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
+        </footer>
       </div>
     </div>
 
@@ -729,19 +675,29 @@
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
-            if (event.data === YT.PlayerState.ENDED) {
-                if (isStoppingManually) { isStoppingManually = false; return; }
-                if (player && player.seekTo) {
-                    player.seekTo(0, true);
-                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+            if (event.data === YT.PlayerState.ENDED || (isStoppingManually && event.data === YT.PlayerState.PAUSED)) {
+                if (isStoppingManually && event.data !== YT.PlayerState.PAUSED) return;
+
+                if(isStoppingManually) {
+                    isStoppingManually = false;
+                } else {
+                    if (player && player.seekTo) {
+                        player.seekTo(0, true);
+                        setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+                    }
                 }
+                
                 disableNoSleep();
-                if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                if (mediaRecorder && mediaRecorder.state === "recording") {
+                    mediaRecorder.stop();
+                } else {
+                    document.getElementById('resultArea').style.display = 'block';
+                }
                 if (audioStream) audioStream.getTracks().forEach(track => track.stop());
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 if (audioContext && audioContext.state !== 'closed') audioContext.close();
                 setTimeout(() => clearVisualizer(), 200);
-                document.getElementById('resultArea').style.display = 'block';
+                
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
             }
@@ -765,16 +721,8 @@
             document.getElementById('headphone-guide').style.display = 'flex';
         }
 
-        document.getElementById('backBtn').onclick = () => {
-            stopAndReset();
-            karaokeView.style.display = 'none';
-            searchView.style.display = 'block';
-            searchInput.value = '';
-            switchView('search');
-        };
-
-        document.getElementById('startBtn').onclick = startSinging;
-        document.getElementById('stopBtn').onclick = stopAndReset;
+        document.getElementById('backBtn').onclick = () => stopAndReset(true);
+        document.getElementById('stopBtn').onclick = () => stopAndReset(false);
 
         async function startSinging() {
             document.getElementById('headphone-guide').style.display = 'none';
@@ -794,8 +742,7 @@
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
-                    const resultArea = document.getElementById('resultArea');
-                    resultArea.querySelector('h4').textContent = '녹음 완료!';
+                    document.getElementById('resultArea').style.display = 'block';
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
@@ -841,23 +788,19 @@
             });
         }
 
-        function stopAndReset() {
+        function stopAndReset(goBackToSearch = false) {
             disableNoSleep();
             isStoppingManually = true;
-            if (player && typeof player.getPlayerState === 'function') {
-                player.seekTo(0, true);
-                setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+
+            if (goBackToSearch) {
+                 if (player && player.stopVideo) player.stopVideo();
+                 karaokeView.style.display = 'none';
+                 searchView.style.display = 'block';
+                 searchInput.value = '';
+                 switchView('search');
+            } else {
+                if (player && player.pauseVideo) player.pauseVideo();
             }
-            setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-                if (audioContext && audioContext.state !== 'closed') audioContext.close();
-                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-                resetState();
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                document.getElementById('headphone-guide').style.display = 'flex';
-            }, 150);
         }
 
         function drawVisualizer(frequency) {
