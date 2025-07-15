@@ -654,8 +654,9 @@
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
+            // 노래가 끝났을 때 '결과 표시' 함수 호출
             if (event.data === YT.PlayerState.ENDED) {
-                endSingingSession(false);
+                endSingingSession();
             }
         }
 
@@ -677,12 +678,11 @@
             document.getElementById('headphone-guide').style.display = 'flex';
         }
 
-        document.getElementById('backBtn').onclick = () => stopAndReset();
-        document.getElementById('stopBtn').onclick = () => endSingingSession(true);
+        document.getElementById('backBtn').onclick = returnToSearchView; // '선곡하기'는 항상 검색화면으로
+        document.getElementById('stopBtn').onclick = endSingingSession;   // '중단'은 결과 표시로
 
         async function startSinging() {
             document.getElementById('headphone-guide').style.display = 'none';
-            isStoppingManually = false;
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
             try {
@@ -750,35 +750,32 @@
             });
         }
         
-        function endSingingSession(manualStop) {
-            isStoppingManually = manualStop;
+        function endSingingSession() {
+            // 노래가 끝나거나, 수동으로 '중단'을 눌렀을 때 호출되는 함수
+            if (player && player.pauseVideo) player.pauseVideo();
             disableNoSleep();
             
-            if (player) {
-                if (manualStop) {
-                    player.pauseVideo();
-                } else {
-                    player.seekTo(0, true);
-                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
-                }
-            }
-            
+            // 녹음 중지. onstop 이벤트 핸들러가 결과 표시 및 버튼 상태 업데이트를 처리함
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
 
-            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+            // 오디오 리소스 정리
             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+            }
         }
 
-        function stopAndReset() {
+        function returnToSearchView() {
             // '선곡하기' 버튼 전용: 모든 것을 중단하고 검색 화면으로 돌아감
+            disableNoSleep();
             if (player && player.stopVideo) player.stopVideo();
-            
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.onstop = null; // 결과 표시 안함
                 mediaRecorder.stop();
