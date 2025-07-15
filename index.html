@@ -195,6 +195,38 @@
         #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
         
+        #lyrics-zoom-guide {
+            color: #e0e0e0;
+            font-size: 14px;
+            margin: 15px 0;
+            opacity: 0.8;
+        }
+
+        /* ▼▼▼ 수정된 부분 (이어폰 안내 스타일) ▼▼▼ */
+        #headphone-guide {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            margin: 20px auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            max-width: 90%;
+        }
+        #headphone-guide .guide-icon {
+            font-size: 2em;
+        }
+        #headphone-guide p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #f0f0f0;
+            text-align: left;
+        }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
+        
         @media (max-width: 600px) {
             #search-view {
                 margin-top: 20px;
@@ -225,6 +257,22 @@
             .result-item .artist {
                 font-size: 0.8em;
             }
+
+            #lyrics-zoom-guide {
+                font-size: 12px;
+            }
+            
+            /* ▼▼▼ 수정된 부분 (이어폰 안내 모바일 스타일) ▼▼▼ */
+            #headphone-guide {
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+            }
+            #headphone-guide p {
+                text-align: center;
+                font-size: 12px;
+            }
+            /* ▲▲▲ 수정된 부분 ▲▲▲ */
         }
     </style>
 </head>
@@ -262,10 +310,14 @@
           <div id="ytplayer"></div>
         </div>
         
-        <div id="lyrics-zoom-guide" style="color: #e0e0e0; font-size: 14px; margin: 15px 0; opacity: 0.8;">
+        <div id="lyrics-zoom-guide">
             💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
         </div>
 
+        <div id="headphone-guide">
+            <span class="guide-icon">🎧</span>
+            <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
+        </div>
         <footer>
           <div>
             <button id="startBtn" disabled>▶ 시작</button>
@@ -323,10 +375,6 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
-            
-            // ▼▼▼ 수정된 부분 (첫 인터랙션 시 효과음 재생 로직 삭제) ▼▼▼
-            // 더 이상 이 부분에 효과음 코드가 없습니다.
-            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -502,7 +550,6 @@
             });
         }
 
-        // ▼▼▼ 수정된 부분 (노래 선택 시 효과음 재생) ▼▼▼
         function startKaraokeSession(videoId, title) {
             const startSound = document.getElementById('startSfx');
             if (startSound) {
@@ -521,8 +568,11 @@
                 isFirstPlayOnIphone = true;
             }
             resetState();
+            
+            // ▼▼▼ 수정된 부분 (이어폰 안내 보이기) ▼▼▼
+            document.getElementById('headphone-guide').style.display = 'flex';
+            // ▲▲▲ 수정된 부분 ▲▲▲
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         document.getElementById('backBtn').onclick = () => {
             stopAndReset();
@@ -537,6 +587,10 @@
         document.getElementById('stopBtn').onclick = stopAndReset;
 
         async function startSinging() {
+            // ▼▼▼ 수정된 부분 (이어폰 안내 숨기기) ▼▼▼
+            document.getElementById('headphone-guide').style.display = 'none';
+            // ▲▲▲ 수정된 부분 ▲▲▲
+
             isStoppingManually = false;
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
@@ -640,6 +694,11 @@
                 resetState();
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
+                
+                // ▼▼▼ 수정된 부분 (이어폰 안내 다시 보이기) ▼▼▼
+                document.getElementById('headphone-guide').style.display = 'flex';
+                // ▲▲▲ 수정된 부분 ▲▲▲
+
             }, 150);
         }
 
