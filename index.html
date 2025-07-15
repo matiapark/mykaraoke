@@ -692,7 +692,7 @@
             document.getElementById('headphone-guide').style.display = 'flex';
         }
 
-        document.getElementById('backBtn').onclick = stopAndReset;
+        document.getElementById('backBtn').onclick = returnToSearchView;
         document.getElementById('stopBtn').onclick = stopAndShowResult;
 
         async function startSinging() {
@@ -721,8 +721,6 @@
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
-                    
-                    if (isStoppingManually) return;
                     
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
@@ -768,38 +766,16 @@
         }
         
         function stopAndShowResult() {
-            isStoppingManually = true;
+            if (player) player.pauseVideo();
             disableNoSleep();
-            if (player && typeof player.getPlayerState === 'function') {
-                if(player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    player.pauseVideo();
-                } else if(player.getPlayerState() === YT.PlayerState.ENDED) {
-                     player.seekTo(0, true);
-                     setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
-                }
-            }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-            } else {
-                 document.getElementById('startBtn').disabled = false;
-                 document.getElementById('stopBtn').disabled = true;
-            }
-            
-            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            if (audioContext && audioContext.state !== 'closed') {
-                audioContext.close();
             }
         }
 
-        function stopAndReset() {
-            disableNoSleep();
-            isStoppingManually = true;
+        function returnToSearchView() {
             if (player && player.stopVideo) player.stopVideo();
-
+            
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.onstop = null;
                 mediaRecorder.stop();
