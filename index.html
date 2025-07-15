@@ -78,7 +78,7 @@
 
         .search-box {
             display: flex;
-            margin-bottom: 30px;
+            margin-bottom: 20px; /* ▼▼▼ 수정된 부분 ▼▼▼ */
             border-radius: 30px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             overflow: hidden;
@@ -104,10 +104,34 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
-
-        #search-button:hover {
-            background-color: #e0a800;
+        
+        /* ▼▼▼ 수정된 부분 (목록 전환 버튼 스타일) ▼▼▼ */
+        .view-toggle-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
         }
+        .view-toggle-buttons button {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #f0f0f0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .view-toggle-buttons button.active {
+            background-color: #ffc107;
+            color: #212529;
+            border-color: #ffc107;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+        }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
 
         #search-results-container {
             min-height: 150px;
@@ -121,19 +145,38 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: calc(100vh - 420px);
+            max-height: calc(100vh - 480px); /* 높이 계산 수정 */
             overflow-y: auto;
         }
-
+        
+        /* ▼▼▼ 수정된 부분 (결과 아이템 구조 변경) ▼▼▼ */
         .result-item {
-            display: flex;
-            flex-direction: column;
+            display: flex; /* 가로 정렬 */
+            justify-content: space-between; /* 양쪽 끝으로 정렬 */
+            align-items: center; /* 세로 중앙 정렬 */
             padding: 12px 20px;
             cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-align: left;
             transition: background-color 0.3s ease, transform 0.2s ease;
         }
+        .song-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .favorite-btn {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s ease;
+        }
+        .favorite-btn:hover {
+            transform: scale(1.2);
+        }
+        .favorite-btn.favorited {
+            color: #ffc107;
+        }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
 
         .result-item:last-child {
             border-bottom: none;
@@ -141,7 +184,6 @@
 
         .result-item:hover {
             background: linear-gradient(90deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0));
-            transform: translateX(10px);
         }
 
         .result-item .title {
@@ -202,7 +244,6 @@
             opacity: 0.8;
         }
 
-        /* ▼▼▼ 수정된 부분 (이어폰 안내 스타일) ▼▼▼ */
         #headphone-guide {
             display: flex;
             align-items: center;
@@ -224,6 +265,15 @@
             line-height: 1.5;
             color: #f0f0f0;
             text-align: left;
+        }
+
+        /* ▼▼▼ 수정된 부분 (다운로드 버튼 스타일) ▼▼▼ */
+        #downloadBtn {
+            background-color: #007bff;
+            margin-left: 10px;
+        }
+        #downloadBtn:hover {
+            background-color: #0056b3;
         }
         /* ▲▲▲ 수정된 부분 ▲▲▲ */
         
@@ -262,7 +312,6 @@
                 font-size: 12px;
             }
             
-            /* ▼▼▼ 수정된 부분 (이어폰 안내 모바일 스타일) ▼▼▼ */
             #headphone-guide {
                 flex-direction: column;
                 gap: 10px;
@@ -272,7 +321,6 @@
                 text-align: center;
                 font-size: 12px;
             }
-            /* ▲▲▲ 수정된 부분 ▲▲▲ */
         }
     </style>
 </head>
@@ -290,6 +338,11 @@
               <button id="search-button">검색</button>
           </div>
       </header>
+      <div class="view-toggle-buttons">
+          <button id="show-search-btn" class="active">전체 검색</button>
+          <button id="show-favorites-btn">⭐ 즐겨찾기</button>
+          <button id="show-recents-btn">🕓 최근 부른 곡</button>
+      </div>
       <div id="search-results-container">
           <ul id="search-results">
           </ul>
@@ -318,6 +371,7 @@
             <span class="guide-icon">🎧</span>
             <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
         </div>
+
         <footer>
           <div>
             <button id="startBtn" disabled>▶ 시작</button>
@@ -327,7 +381,8 @@
           <div id="resultArea" style="display:none;">
             <h4>녹음 완료!</h4>
             <audio id="recordedAudio" controls style="width: 100%;"></audio>
-          </div>
+            <button id="downloadBtn" style="display: none;">💾 다운로드</button>
+            </div>
           <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
         </footer>
       </div>
@@ -354,6 +409,10 @@
         let totalPages = 1;
         let debounceTimer;
 
+        // ▼▼▼ 수정된 부분 (현재 목록 상태 변수) ▼▼▼
+        let currentView = 'search';
+        // ▲▲▲ 수정된 부분 ▲▲▲
+
         // --- 뷰(View) 관리 ---
         const searchView = document.getElementById('search-view');
         const karaokeView = document.getElementById('karaoke-view');
@@ -362,6 +421,12 @@
         const searchResultsUl = document.getElementById('search-results');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
         const noSleepVideo = document.getElementById('noSleepVideo');
+
+        // ▼▼▼ 수정된 부분 (목록 전환 버튼) ▼▼▼
+        const showSearchBtn = document.getElementById('show-search-btn');
+        const showFavoritesBtn = document.getElementById('show-favorites-btn');
+        const showRecentsBtn = document.getElementById('show-recents-btn');
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -375,182 +440,159 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
+            
+            // ▼▼▼ 수정된 부분 (목록 전환 버튼 이벤트 리스너) ▼▼▼
+            showSearchBtn.addEventListener('click', () => switchView('search'));
+            showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
+            showRecentsBtn.addEventListener('click', () => switchView('recents'));
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
         searchInput.addEventListener('input', () => {
+            // ▼▼▼ 수정된 부분 (검색 입력 시 '전체 검색'으로 자동 전환) ▼▼▼
+            if (currentView !== 'search') {
+                switchView('search');
+            }
+            // ▲▲▲ 수정된 부분 ▲▲▲
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 startNewSearch();
             }, 500); 
         });
 
-        searchButton.addEventListener('click', startNewSearch);
+        // ... 기존 코드 ...
 
-        searchInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                clearTimeout(debounceTimer);
+        // ▼▼▼ 수정된 부분 (LocalStorage 헬퍼 함수) ▼▼▼
+        const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
+        const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
+
+        const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
+        const addRecentSong = (songData) => {
+            let recents = getRecents();
+            // 중복 제거
+            recents = recents.filter(song => song.videoId !== songData.videoId);
+            // 맨 앞에 추가
+            recents.unshift(songData);
+            // 최대 10개까지만 저장
+            if (recents.length > 10) {
+                recents = recents.slice(0, 10);
+            }
+            localStorage.setItem('karaokeRecents', JSON.stringify(recents));
+        };
+        // ▲▲▲ 수정된 부분 ▲▲▲
+        
+        // ▼▼▼ 수정된 부분 (목록 렌더링 함수들) ▼▼▼
+        function renderFavorites() {
+            searchResultsUl.innerHTML = '';
+            loadMoreBtn.style.display = 'none';
+            const favorites = getFavorites();
+            if (favorites.length === 0) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">즐겨찾기한 노래가 없습니다.</li>';
+                return;
+            }
+            renderSongList(favorites);
+        }
+
+        function renderRecents() {
+            searchResultsUl.innerHTML = '';
+            loadMoreBtn.style.display = 'none';
+            const recents = getRecents();
+            if (recents.length === 0) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">최근에 부른 노래가 없습니다.</li>';
+                return;
+            }
+            renderSongList(recents);
+        }
+
+        function switchView(view) {
+            currentView = view;
+            showSearchBtn.classList.toggle('active', view === 'search');
+            showFavoritesBtn.classList.toggle('active', view === 'favorites');
+            showRecentsBtn.classList.toggle('active', view === 'recents');
+            
+            searchInput.style.display = view === 'search' ? 'flex' : 'none';
+            searchButton.style.display = view === 'search' ? 'block' : 'none';
+            document.querySelector('.search-box').style.display = view === 'search' ? 'flex' : 'none';
+
+            if (view === 'search') {
                 startNewSearch();
-            }
-        });
-        
-        loadMoreBtn.addEventListener('click', () => {
-            currentPage++;
-            fetchAndRenderResults();
-        });
-
-        function createDecorations(containerSelector, starCount, balloonCount) {
-            const container = document.querySelector(containerSelector);
-            if (!container) return;
-
-            const colors = ['#ffc107', '#007bff', '#28a745', '#dc3545', '#17a2b8', '#6610f2'];
-            
-            const createIcon = (type) => {
-                const icon = document.createElement('div');
-                icon.className = type;
-                icon.style.left = `${Math.random() * 90}%`;
-                icon.style.top = `${Math.random() * 80}%`;
-                icon.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                icon.style.animationDelay = `${Math.random() * 4}s`;
-                icon.style.animationDuration = `${2 + Math.random() * 2}s`;
-                container.appendChild(icon);
-            };
-
-            for (let i = 0; i < starCount; i++) createIcon('star');
-            for (let i = 0; i < balloonCount; i++) createIcon('balloon');
-        }
-
-        function startNewSearch() {
-            const newQuery = searchInput.value.trim();
-            if (currentQuery === newQuery && newQuery !== '') return;
-            
-            currentQuery = newQuery;
-            currentPage = 1;
-
-            if (currentQuery) {
-                searchResultsUl.innerHTML = '<li>검색 중...</li>';
-                loadMoreBtn.style.display = 'none';
-                fetchAndRenderResults();
-            } else {
-                searchResultsUl.innerHTML = '';
-                loadMoreBtn.style.display = 'none';
+            } else if (view === 'favorites') {
+                renderFavorites();
+            } else if (view === 'recents') {
+                renderRecents();
             }
         }
-        
-        async function fetchAndRenderResults() {
-            const queryForThisRequest = currentQuery;
-            if (!queryForThisRequest) return;
-
-            loadMoreBtn.disabled = true;
-            loadMoreBtn.textContent = '불러오는 중...';
-
-            try {
-                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(queryForThisRequest)}&page=${currentPage}`);
-                if (!response.ok) {
-                    throw new Error(`서버 오류: ${response.statusText}`);
-                }
-                const data = await response.json();
-
-                if (queryForThisRequest === currentQuery) {
-                    renderSearchResults(data.results);
-                    totalPages = data.totalPages;
-
-                    if (currentPage < totalPages) {
-                        loadMoreBtn.style.display = 'block';
-                        loadMoreBtn.disabled = false;
-                        loadMoreBtn.textContent = '더 보기';
-                    } else {
-                        loadMoreBtn.style.display = 'none';
-                    }
-                }
-
-            } catch (error) {
-                if (queryForThisRequest === currentQuery) {
-                    console.error('Search failed:', error);
-                    searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">검색에 실패했습니다.</li>';
-                    loadMoreBtn.style.display = 'none';
-                }
-            }
-        }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function renderSearchResults(results) {
             if (currentPage === 1) {
                 searchResultsUl.innerHTML = '';
             }
-
             if (results.length === 0 && currentPage === 1) {
                 searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; text-align:center;">검색 결과가 없습니다.</li>';
                 return;
             }
+            renderSongList(results); // ▼▼▼ 수정된 부분 ▼▼▼
+        }
 
-            results.forEach(song => {
+        // ▼▼▼ 수정된 부분 (공통 목록 렌더링 함수) ▼▼▼
+        function renderSongList(songs) {
+            const favorites = getFavorites();
+            songs.forEach(song => {
+                const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
                 const li = document.createElement('li');
                 li.className = 'result-item';
-                li.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
-                li.addEventListener('click', () => {
-                    startKaraokeSession(song.videoId, `${song.title} - ${song.artist}`);
-                });
+                
+                const songInfoDiv = document.createElement('div');
+                songInfoDiv.className = 'song-info';
+                songInfoDiv.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
+                
+                const favoriteBtn = document.createElement('span');
+                favoriteBtn.className = `favorite-btn ${isFavorited ? 'favorited' : ''}`;
+                favoriteBtn.innerHTML = isFavorited ? '★' : '☆';
+                favoriteBtn.onclick = (e) => {
+                    e.stopPropagation(); // li의 클릭 이벤트 방지
+                    toggleFavorite(song, favoriteBtn);
+                };
+
+                li.appendChild(songInfoDiv);
+                li.appendChild(favoriteBtn);
+                
+                songInfoDiv.onclick = () => { // 제목/가수 부분을 클릭해야 재생
+                    startKaraokeSession(song);
+                };
+
                 searchResultsUl.appendChild(li);
             });
         }
         
-        const enableNoSleep = () => {
-            noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
-        };
+        function toggleFavorite(songData, btnElement) {
+            let favorites = getFavorites();
+            const existingIndex = favorites.findIndex(fav => fav.videoId === songData.videoId);
 
-        const disableNoSleep = () => {
-            noSleepVideo.pause();
-        };
-
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('ytplayer', {
-                height: '360',
-                width: '640',
-                playerVars: { controls: 0, modestbranding: 1, fs: 0 },
-                events: {
-                    'onReady': () => console.log("✅ YouTube 준비됨"),
-                    'onStateChange': (event) => {
-                        if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
-                            isFirstPlayOnIphone = false;
-                            document.getElementById('mic-error-message').style.display = 'none';
-                        }
-                        
-                        if (event.data === YT.PlayerState.ENDED) {
-                            if (isStoppingManually) { 
-                                isStoppingManually = false; 
-                                return;
-                            }
-                            
-                            if (player && player.seekTo) {
-                                player.seekTo(0, true);
-                                setTimeout(() => {
-                                    if (player.stopVideo) player.stopVideo();
-                                }, 50);
-                            }
-
-                            disableNoSleep();
-
-                            if (mediaRecorder && mediaRecorder.state === "recording") {
-                                mediaRecorder.stop();
-                            }
-                            
-                            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                            if (audioContext && audioContext.state !== 'closed') audioContext.close();
-                            
-                            setTimeout(() => clearVisualizer(), 200);
-                            
-                            document.getElementById('resultArea').style.display = 'block';
-                            
-                            document.getElementById('startBtn').disabled = false;
-                            document.getElementById('stopBtn').disabled = true;
-                        }
-                    }
-                }
-            });
+            if (existingIndex > -1) {
+                favorites.splice(existingIndex, 1);
+                btnElement.innerHTML = '☆';
+                btnElement.classList.remove('favorited');
+            } else {
+                favorites.push({ videoId: songData.videoId, title: songData.title, artist: songData.artist });
+                btnElement.innerHTML = '★';
+                btnElement.classList.add('favorited');
+            }
+            saveFavorites(favorites);
+            
+            // 즐겨찾기 뷰에 있을 때 즉시 갱신
+            if (currentView === 'favorites') {
+                renderFavorites();
+            }
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
-        function startKaraokeSession(videoId, title) {
+        // ... onYouTubeIframeAPIReady, startKaraokeSession 등 나머지 코드는 여기에 위치 ...
+        function startKaraokeSession(songData) { // songData 객체로 받음
+            addRecentSong(songData); // ▼▼▼ 수정된 부분 ▼▼▼
+
             const startSound = document.getElementById('startSfx');
             if (startSound) {
                 startSound.currentTime = 0;
@@ -559,8 +601,8 @@
             
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
-            document.getElementById('karaoke-title').textContent = title;
-            player.cueVideoById(videoId);
+            document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`; // ▼▼▼ 수정된 부분 ▼▼▼
+            player.cueVideoById(songData.videoId); // ▼▼▼ 수정된 부분 ▼▼▼
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             
@@ -569,173 +611,47 @@
             }
             resetState();
             
-            // ▼▼▼ 수정된 부분 (이어폰 안내 보이기) ▼▼▼
             document.getElementById('headphone-guide').style.display = 'flex';
-            // ▲▲▲ 수정된 부분 ▲▲▲
         }
+        
+        // ... mediaRecorder.onstop 부분 수정 ...
+        mediaRecorder.onstop = () => {
+            const resultArea = document.getElementById('resultArea');
+            resultArea.querySelector('h4').textContent = '녹음 완료!';
+            const audioPlayer = document.getElementById('recordedAudio');
+            const downloadBtn = document.getElementById('downloadBtn');
+            audioPlayer.style.display = 'block';
+            
+            if (isStoppingManually) return;
+            
+            const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            audioPlayer.src = url;
 
-        document.getElementById('backBtn').onclick = () => {
-            stopAndReset();
-            karaokeView.style.display = 'none';
-            searchView.style.display = 'block';
-            searchInput.value = '';
-            searchResultsUl.innerHTML = '';
-            loadMoreBtn.style.display = 'none';
+            // ▼▼▼ 수정된 부분 (다운로드 버튼 기능) ▼▼▼
+            downloadBtn.style.display = 'inline-block';
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
-
-        document.getElementById('startBtn').onclick = startSinging;
-        document.getElementById('stopBtn').onclick = stopAndReset;
-
-        async function startSinging() {
-            // ▼▼▼ 수정된 부분 (이어폰 안내 숨기기) ▼▼▼
-            document.getElementById('headphone-guide').style.display = 'none';
-            // ▲▲▲ 수정된 부분 ▲▲▲
-
-            isStoppingManually = false;
-            const errorMessageDiv = document.getElementById('mic-error-message');
-            errorMessageDiv.style.display = 'none';
-            try {
-                const constraints = {
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                };
-                audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                enableNoSleep();
-
-                resetState();
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
-                if (audioContext && audioContext.state !== 'closed') await audioContext.close();
-                
-                audioContext = new AudioContext();
-                pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, modelLoaded);
-                
-                mediaRecorder = new MediaRecorder(audioStream);
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = () => {
-                    const resultArea = document.getElementById('resultArea');
-                    resultArea.querySelector('h4').textContent = '녹음 완료!';
-                    const audioPlayer = document.getElementById('recordedAudio');
-                    audioPlayer.style.display = 'block';
-                    
-                    if (isStoppingManually) return;
-                    
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const url = URL.createObjectURL(blob);
-                    audioPlayer.src = url;
-                };
-                
-                mediaRecorder.start();
-                
-                const resultArea = document.getElementById('resultArea');
-                resultArea.querySelector('h4').textContent = '녹음 중...';
-                document.getElementById('recordedAudio').style.display = 'none';
-                resultArea.style.display = 'block';
-
-                if (isIphone && isFirstPlayOnIphone) {
-                    errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
-                    errorMessageDiv.style.display = 'block';
-                } else {
-                    player.playVideo();
-                }
-
-            } catch (err) {
-                console.error("마이크 권한 오류:", err.name, err.message);
-                errorMessageDiv.innerHTML = "마이크 사용 권한을 허용해주세요. 브라우저 주소창의 자물쇠 아이콘을 확인하세요.";
-                errorMessageDiv.style.display = 'block';
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-            }
-        }
-
-        function modelLoaded() {
-            getPitch();
-        }
-
-        function getPitch() {
-            pitch.getPitch((err, frequency) => {
-                drawVisualizer(frequency || 0);
-                if (mediaRecorder && mediaRecorder.state === "recording") {
-                    animationFrameId = requestAnimationFrame(getPitch);
-                }
-            });
-        }
-
-        function stopAndReset() {
-            disableNoSleep();
-            isStoppingManually = true;
-
-            if (player && typeof player.getPlayerState === 'function') {
-                player.seekTo(0, true);
-                setTimeout(() => {
-                    if (player.stopVideo) player.stopVideo();
-                }, 50);
-            }
-
-            setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                }
-                if (audioContext && audioContext.state !== 'closed') {
-                    audioContext.close();
-                }
-                if (audioStream) {
-                    audioStream.getTracks().forEach(track => track.stop());
-                }
-                if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                    animationFrameId = null;
-                }
-
-                resetState();
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                
-                // ▼▼▼ 수정된 부분 (이어폰 안내 다시 보이기) ▼▼▼
-                document.getElementById('headphone-guide').style.display = 'flex';
-                // ▲▲▲ 수정된 부분 ▲▲▲
-
-            }, 150);
-        }
-
-        function drawVisualizer(frequency) {
-            if (!canvasCtx) return;
-            canvasCtx.fillStyle = 'rgba(18, 18, 18, 0.2)';
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            if (frequency === 0) return;
-            const barCount = 60;
-            const barWidth = canvas.width / barCount / 2;
-            const minPitch = 80, maxPitch = 500;
-            let heightRatio = (frequency - minPitch) / (maxPitch - minPitch);
-            heightRatio = Math.max(0, Math.min(1, heightRatio));
-            const hue = (1 - heightRatio) * 240;
-            const centerBarHeight = heightRatio * (canvas.height * 0.8);
-            for (let i = 0; i < barCount; i++) {
-                const distanceFromCenter = Math.abs(i - Math.floor(barCount / 2));
-                const height = Math.max(0, centerBarHeight * (1 - distanceFromCenter / (barCount / 1.8)));
-                if (height < 2) continue;
-                const x = (canvas.width / 2) + (i - barCount / 2) * (barWidth * 1.8);
-                const y = canvas.height - height;
-                canvasCtx.fillStyle = `hsl(${hue}, 100%, 65%)`;
-                canvasCtx.fillRect(x, y, barWidth, height);
-            }
-        }
-
-        function clearVisualizer() {
-            if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
+        
+        // ... resetState() 함수 수정 ...
         function resetState() {
             recordedChunks = [];
             document.getElementById('resultArea').style.display = 'none';
             const recordedAudio = document.getElementById('recordedAudio');
             if (recordedAudio) recordedAudio.src = "";
+            document.getElementById('downloadBtn').style.display = 'none'; // ▼▼▼ 수정된 부분 ▼▼▼
             clearVisualizer();
         }
+
     </script>
 </body>
 </html>
