@@ -440,6 +440,23 @@
 
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
+            
+            // ▼▼▼ 수정된 부분 (슬립 모드에서 복귀 시 기능 재개) ▼▼▼
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log("오디오 컨텍스트가 재개되었습니다.");
+                        });
+                    }
+                    if (player && typeof player.getPlayerState === 'function') {
+                        if (karaokeView.style.display === 'block' && player.getPlayerState() === YT.PlayerState.PAUSED) {
+                             player.playVideo();
+                        }
+                    }
+                }
+            });
+            // ▲▲▲ 수정된 부분 ▲▲▲
         };
 
         // --- 검색 관련 이벤트 리스너 ---
@@ -454,6 +471,7 @@
         });
 
         searchButton.addEventListener('click', startNewSearch);
+
         searchInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 clearTimeout(debounceTimer);
@@ -469,6 +487,7 @@
         // --- LocalStorage 헬퍼 함수 ---
         const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
         const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
+
         const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
         const addRecentSong = (songData) => {
             let recents = getRecents();
@@ -501,12 +520,18 @@
             currentView = view;
             [showSearchBtn, showFavoritesBtn, showRecentsBtn].forEach(btn => btn.classList.remove('active'));
             document.getElementById(`show-${view}-btn`).classList.add('active');
+            
             const isSearchView = view === 'search';
             document.querySelector('.search-box').style.display = isSearchView ? 'flex' : 'none';
             loadMoreBtn.style.display = 'none';
-            if (isSearchView) { startNewSearch(); } 
-            else if (view === 'favorites') { renderFavorites(); } 
-            else if (view === 'recents') { renderRecents(); }
+
+            if (isSearchView) {
+                startNewSearch();
+            } else if (view === 'favorites') {
+                renderFavorites();
+            } else if (view === 'recents') {
+                renderRecents();
+            }
         }
         
         function renderFavorites() {
@@ -584,23 +609,29 @@
                 const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
                 const li = document.createElement('li');
                 li.className = 'result-item';
+                
                 const songInfoDiv = document.createElement('div');
                 songInfoDiv.className = 'song-info';
                 songInfoDiv.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
+                
                 const favoriteBtn = document.createElement('span');
                 favoriteBtn.className = `favorite-btn ${isFavorited ? 'favorited' : ''}`;
                 favoriteBtn.innerHTML = isFavorited ? '★' : '☆';
+                
                 li.appendChild(songInfoDiv);
                 li.appendChild(favoriteBtn);
+                
                 li.addEventListener('click', (e) => {
                     if (e.target !== favoriteBtn) {
                         startKaraokeSession(song);
                     }
                 });
+
                 favoriteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggleFavorite(song, favoriteBtn);
                 });
+
                 searchResultsUl.appendChild(li);
             });
         }
@@ -639,7 +670,7 @@
                 document.getElementById('mic-error-message').style.display = 'none';
             }
             if (event.data === YT.PlayerState.ENDED) {
-                endSingingSession(false);
+                stopAndShowResult();
             }
         }
 
@@ -661,8 +692,8 @@
             document.getElementById('headphone-guide').style.display = 'flex';
         }
 
-        document.getElementById('backBtn').onclick = returnToSearchView;
-        document.getElementById('stopBtn').onclick = () => endSingingSession(true);
+        document.getElementById('backBtn').onclick = stopAndReset;
+        document.getElementById('stopBtn').onclick = stopAndShowResult;
 
         async function startSinging() {
             document.getElementById('headphone-guide').style.display = 'none';
@@ -736,30 +767,39 @@
             });
         }
         
-        // ▼▼▼ 수정된 부분 (함수 로직 재정리) ▼▼▼
-        function endSingingSession(manual = true) {
-            if (isStoppingManually && manual) return; // 중복 호출 방지
-            isStoppingManually = manual;
-            
-            if (player && player.pauseVideo) player.pauseVideo();
+        function stopAndShowResult() {
+            isStoppingManually = true;
             disableNoSleep();
-            
+            if (player && typeof player.getPlayerState === 'function') {
+                if(player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
+                } else if(player.getPlayerState() === YT.PlayerState.ENDED) {
+                     player.seekTo(0, true);
+                     setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+                }
+            }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             } else {
-                // 녹음이 진행되지 않았는데 호출될 경우(예: 시작하자마자 중단)
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
+                 document.getElementById('startBtn').disabled = false;
+                 document.getElementById('stopBtn').disabled = true;
             }
-
-            if(isStoppingManually) {
-                setTimeout(() => { isStoppingManually = false; }, 200);
+            
+            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
             }
         }
 
-        function returnToSearchView() {
+        function stopAndReset() {
+            disableNoSleep();
+            isStoppingManually = true;
             if (player && player.stopVideo) player.stopVideo();
-            
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.onstop = null;
                 mediaRecorder.stop();
@@ -773,7 +813,6 @@
             searchInput.value = '';
             switchView('search');
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
