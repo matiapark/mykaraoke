@@ -131,11 +131,9 @@
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
         }
 
-        /* ▼▼▼ 수정된 부분 ▼▼▼ */
         #show-playlist-btn {
             color: #ffc107;
         }
-        /* ▲▲▲ 수정된 부분 ▲▲▲ */
 
         #search-results-container {
             min-height: 150px;
@@ -660,20 +658,16 @@
             if (isIphone) isFirstPlayOnIphone = true;
             resetState();
             
-            // ▼▼▼ 수정된 부분 (UI 표시 로직 단순화) ▼▼▼
             const recordingUI = ['headphone-guide', 'lyrics-zoom-guide'];
             recordingUI.forEach(id => {
-                document.getElementById(id).style.display = isPlaylistMode ? 'none' : 'block';
+                document.getElementById(id).style.display = isPlaylistMode ? 'none' : 'flex';
             });
-            document.getElementById('startBtn').style.display = 'inline-block';
-            // ▲▲▲ 수정된 부분 ▲▲▲
         }
 
         document.getElementById('backBtn').onclick = returnToSearchView;
         document.getElementById('stopBtn').onclick = endSingingSession;
 
         async function startSinging() {
-            document.getElementById('headphone-guide').style.display = 'none';
             isStoppingManually = false;
             
             if (isPlaylistMode) {
@@ -684,6 +678,7 @@
                 return;
             }
             
+            document.getElementById('headphone-guide').style.display = 'none';
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
             try {
@@ -703,11 +698,11 @@
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
                     
+                    if (isStoppingManually) return;
+
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
-                    
-                    if (isStoppingManually) return;
                     
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
