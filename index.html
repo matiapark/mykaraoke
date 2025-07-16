@@ -622,44 +622,47 @@
             });
         }
         
+        // ▼▼▼ 수정된 부분 ▼▼▼
         function onPlayerStateChange(event) {
             if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
             
-            // 노래가 끝나면 다음 곡을 재생하거나, 노래방 세션을 종료합니다.
+            // 노래가 자연스럽게 끝났을 때의 처리
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
-                    // 플레이리스트에 다음 곡이 있을 경우
                     if (currentPlaylistIndex < currentPlaylist.length) {
                         const nextSong = currentPlaylist[currentPlaylistIndex];
                         player.cueVideoById(nextSong.videoId);
                         document.getElementById('karaoke-title').textContent = `${nextSong.title} - ${nextSong.artist}`;
-                        // 다음 곡 자동 재생
                         setTimeout(() => player.playVideo(), 500); 
-                    } 
-                    // 플레이리스트의 마지막 곡 재생이 끝났을 경우
-                    else {
-                        // 첫 번째 곡으로 돌아가 대기합니다.
+                    } else {
                         currentPlaylistIndex = 0;
                         const firstSong = currentPlaylist[currentPlaylistIndex];
                         player.cueVideoById(firstSong.videoId);
                         document.getElementById('karaoke-title').textContent = `${firstSong.title} - ${firstSong.artist}`;
-                        
-                        // 시작 버튼을 활성화하고 정지 버튼을 비활성화합니다.
                         document.getElementById('startBtn').disabled = false;
                         document.getElementById('stopBtn').disabled = true;
-                        disableNoSleep(); // 자동 재생이 멈추므로 화면 꺼짐 방지 비디오도 중지
+                        disableNoSleep();
                     }
                 } else {
-                    endSingingSession();
+                    // 혼자 부르기 모드에서 노래가 끝나면 녹음 결과를 표시
+                    isStoppingManually = false;
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    disableNoSleep();
+                    if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                    if(animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
                 }
             }
         }
 
-        // ▼▼▼ 수정된 부분 ▼▼▼
         function startKaraokeSession(songData, isPlaylist = false) {
             isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
@@ -673,26 +676,21 @@
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
-            document.getElementById('lyrics-zoom-guide').style.display = 'block'; // 가사 안내 문구 항상 표시
+            
             player.cueVideoById(songData.videoId);
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             if (isIphone) isFirstPlayOnIphone = true;
-            resetState();
             
-            // 녹음 관련 UI는 플레이리스트가 아닐 때만 표시
-            const recordingUI = ['headphone-guide', 'resultArea'];
-            recordingUI.forEach(id => {
-                const element = document.getElementById(id);
-                if(element) element.style.display = isPlaylistMode ? 'none' : 'flex';
-            });
-            // 플레이리스트 모드일 때도 headphone-guide는 숨김 처리
-            if(isPlaylistMode) {
-                const headphoneGuide = document.getElementById('headphone-guide');
-                if(headphoneGuide) headphoneGuide.style.display = 'none';
+            resetState(); // 'resultArea'를 숨기는 등 상태 초기화
+
+            document.getElementById('lyrics-zoom-guide').style.display = 'block';
+            const headphoneGuide = document.getElementById('headphone-guide');
+            // 플레이리스트 모드가 아닐 때만 헤드폰 가이드 표시
+            if (headphoneGuide) {
+                headphoneGuide.style.display = isPlaylistMode ? 'none' : 'flex';
             }
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         document.getElementById('backBtn').onclick = returnToSearchView;
         document.getElementById('stopBtn').onclick = endSingingSession;
@@ -722,13 +720,20 @@
                 if (audioContext && audioContext.state !== 'closed') await audioContext.close();
                 audioContext = new AudioContext();
                 pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, modelLoaded);
+                
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
-                    if (isStoppingManually) return;
+                    // isStoppingManually 플래그를 확인하여 수동 중단 시 결과 표시 안 함
+                    if (isStoppingManually) return; 
+
                     document.getElementById('resultArea').style.display = 'block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
+                    
+                    const resultTitle = document.querySelector('#resultArea h4');
+                    resultTitle.textContent = '녹음 완료!';
+
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
@@ -744,11 +749,13 @@
                     };
                 };
                 mediaRecorder.start();
+
+                // '시작' 버튼 누르면 '녹음 중...' 표시
                 const resultArea = document.getElementById('resultArea');
+                resultArea.style.display = 'block';
                 resultArea.querySelector('h4').textContent = '녹음 중...';
                 document.getElementById('recordedAudio').style.display = 'none';
                 document.getElementById('downloadBtn').style.display = 'none';
-                resultArea.style.display = 'block';
 
                 if (isIphone && isFirstPlayOnIphone) {
                     errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
@@ -776,20 +783,25 @@
             });
         }
         
+        // '중단' 버튼을 눌렀을 때 실행되는 함수 (녹음 취소)
         function endSingingSession() {
-            if (player) player.pauseVideo();
+            isStoppingManually = true; // 수동으로 중단했음을 알리는 플래그 설정
+
+            if (player) player.stopVideo(); // 동영상을 정지하고 처음으로 되돌림
             
             if (!isPlaylistMode) {
                 disableNoSleep();
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
+                    mediaRecorder.stop(); // 녹음 중단 (onstop 핸들러는 플래그 때문에 결과를 표시 안 함)
                 }
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop()); // 마이크 자원 해제
                 if (audioContext && audioContext.state !== 'closed') audioContext.close();
                 if(animationFrameId) {
                     cancelAnimationFrame(animationFrameId);
                     animationFrameId = null;
                 }
             }
+            document.getElementById('resultArea').style.display = 'none'; // '녹음 중...' 메시지 숨기기
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
         }
@@ -811,6 +823,7 @@
             searchInput.value = '';
             switchView('search');
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
