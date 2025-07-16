@@ -675,9 +675,7 @@
                         mediaRecorder.stop();
                     }
                     disableNoSleep();
-                    // --- START: 수정된 부분 ---
                     if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                    // --- END: 수정된 부분 ---
                     if (audioContext && audioContext.state !== 'closed') audioContext.close();
                     if(animationFrameId) {
                         cancelAnimationFrame(animationFrameId);
@@ -802,7 +800,10 @@
         function endSingingSession() {
             isStoppingManually = true;
 
-            if (player) player.stopVideo(); 
+            if (player) {
+                player.pauseVideo(); // 비디오를 일시 정지하고
+                player.seekTo(0);    // 처음으로 되돌립니다.
+            }
             
             if (!isPlaylistMode) {
                 disableNoSleep();
