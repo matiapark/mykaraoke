@@ -130,10 +130,16 @@
             border-color: #ffc107;
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
         }
-
-        #show-playlist-btn {
-            color: #ffc107;
+        
+        /* ▼▼▼ 수정된 부분 ▼▼▼ */
+        #show-playlist-btn .playlist-icon {
+            color: #28a745; /* 초록색 음표 */
+            font-style: normal;
         }
+        .view-toggle-buttons button.active .playlist-icon {
+            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
+        }
+        /* ▲▲▲ 수정된 부분 ▲▲▲ */
 
         #search-results-container {
             min-height: 150px;
@@ -287,8 +293,8 @@
           <button id="show-search-btn" class="active">전체 검색</button>
           <button id="show-favorites-btn">⭐ 즐겨찾기</button>
           <button id="show-recents-btn">🕓 최근 부른 곡</button>
-          <button id="show-playlist-btn">🎶 연속 부르기</button>
-      </div>
+          <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
+          </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
           <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
       </div>
@@ -666,8 +672,10 @@
 
         document.getElementById('backBtn').onclick = returnToSearchView;
         document.getElementById('stopBtn').onclick = endSingingSession;
+        document.getElementById('startBtn').onclick = startSinging;
 
         async function startSinging() {
+            document.getElementById('headphone-guide').style.display = 'none';
             isStoppingManually = false;
             
             if (isPlaylistMode) {
@@ -678,7 +686,6 @@
                 return;
             }
             
-            document.getElementById('headphone-guide').style.display = 'none';
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
             try {
@@ -697,7 +704,7 @@
                     document.getElementById('resultArea').style.display = 'block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
-                    
+
                     if (isStoppingManually) return;
 
                     const audioPlayer = document.getElementById('recordedAudio');
