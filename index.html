@@ -852,26 +852,4 @@
             const hue = (1 - heightRatio) * 240;
             const centerBarHeight = heightRatio * (canvas.height * 0.8);
             for (let i = 0; i < barCount; i++) {
-                const distanceFromCenter = Math.abs(i - Math.floor(barCount / 2));
-                const height = Math.max(0, centerBarHeight * (1 - distanceFromCenter / (barCount / 1.8)));
-                if (height < 2) continue;
-                const x = (canvas.width / 2) + (i - barCount / 2) * (barWidth * 1.8);
-                const y = canvas.height - height;
-                canvasCtx.fillStyle = `hsl(${hue}, 100%, 65%)`;
-                canvasCtx.fillRect(x, y, barWidth, height);
-            }
-        }
-
-        function clearVisualizer() { if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height); }
-        function resetState() {
-            recordedChunks = [];
-            isStoppingManually = false;
-            document.getElementById('resultArea').style.display = 'none';
-            const recordedAudio = document.getElementById('recordedAudio');
-            if (recordedAudio) recordedAudio.src = "";
-            document.getElementById('downloadBtn').style.display = 'none';
-            clearVisualizer();
-        }
-    </script>
-</body>
-</html>
+                const distanceFromCenter = Math.abs
