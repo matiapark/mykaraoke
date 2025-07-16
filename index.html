@@ -328,7 +328,7 @@
           <div>
             <button id="startBtn" disabled>▶ 시작</button>
             <button id="stopBtn" disabled>⏹ 중단</button>
-            <button id="backBtn">🔍 선곡하기</button>
+            <button id="backBtn">🔍 선곡</button>
           </div>
           <div id="resultArea" style="display:none;">
             <h4>녹음 완료!</h4>
@@ -588,6 +588,7 @@
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             isSinging = false;
+            isStoppingManually = false; // 상태 플래그 초기화
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
