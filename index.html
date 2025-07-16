@@ -633,18 +633,23 @@
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
+                    // 플레이리스트에 다음 곡이 있을 경우
                     if (currentPlaylistIndex < currentPlaylist.length) {
                         const nextSong = currentPlaylist[currentPlaylistIndex];
                         player.cueVideoById(nextSong.videoId);
                         document.getElementById('karaoke-title').textContent = `${nextSong.title} - ${nextSong.artist}`;
-                        setTimeout(() => player.playVideo(), 500); // 다음 곡 자동 재생
-                    } else {
-                        // 플레이리스트의 마지막 곡 재생이 끝나면 첫 곡으로 돌아가고 대기합니다.
+                        // 다음 곡 자동 재생
+                        setTimeout(() => player.playVideo(), 500); 
+                    } 
+                    // 플레이리스트의 마지막 곡 재생이 끝났을 경우
+                    else {
+                        // 첫 번째 곡으로 돌아가 대기합니다.
                         currentPlaylistIndex = 0;
                         const firstSong = currentPlaylist[currentPlaylistIndex];
                         player.cueVideoById(firstSong.videoId);
                         document.getElementById('karaoke-title').textContent = `${firstSong.title} - ${firstSong.artist}`;
                         
+                        // 시작 버튼을 활성화하고 정지 버튼을 비활성화합니다.
                         document.getElementById('startBtn').disabled = false;
                         document.getElementById('stopBtn').disabled = true;
                         disableNoSleep(); // 자동 재생이 멈추므로 화면 꺼짐 방지 비디오도 중지
