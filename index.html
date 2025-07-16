@@ -348,7 +348,7 @@
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0;
-        let isSinging = false, isPlaylistMode = false, isPreparing = false;
+        let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
 
         // --- 전역 DOM 요소 변수 ---
@@ -445,14 +445,14 @@
         function onPlayerStateChange(event) {
             // 노래가 끝났을 때
             if (event.data === YT.PlayerState.ENDED) {
-                if (!isSinging) return; // 중단 버튼으로 이미 처리된 경우 무시
+                if (!isSinging) return;
                 isSinging = false;
+                isStoppingManually = false; // 노래가 자연스럽게 끝났으므로 플래그를 false로 설정
                 
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop(); // 녹음 완료 처리 (onstop 핸들러가 결과 표시)
                 }
                 
-                // UI 업데이트
                 stopBtn.disabled = true;
                 startBtn.disabled = false;
                 disableNoSleep();
@@ -461,7 +461,6 @@
                     animationFrameId = null;
                 }
                 
-                // 플레이리스트 처리
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
@@ -482,15 +481,13 @@
             if (isPreparing) return;
             isPreparing = true;
             
-            // UI 초기화
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
-            headphoneGuide.style.display = 'flex'; // 안내문 다시 표시
+            headphoneGuide.style.display = 'flex';
             resetState();
 
-            // 이전 리소스가 남아있다면 완벽히 정리
             await cleanupAudioResources();
             
             isPlaylistMode = isPlaylist;
@@ -503,27 +500,24 @@
             stopBtn.disabled = true;
             
             try {
-                // 1. YouTube 영상 로드
                 if (player) {
                     player.cueVideoById(songData.videoId);
                 }
 
-                // 2. 마이크 권한 받고 오디오 리소스 생성
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
                 audioContext = new AudioContext();
                 pitch = await new Promise((resolve, reject) => {
                     ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, (err, model) => {
-                        if (err) reject(err);
-                        else resolve(model);
+                        if (err) return reject(err);
+                        resolve(model);
                     });
                 });
                 
                 mediaRecorder = new MediaRecorder(audioStream);
                 setupMediaRecorder();
 
-                // 3. 모든 준비 완료
                 startBtn.disabled = false;
                 startBtn.textContent = '▶ 시작';
                 
@@ -542,7 +536,7 @@
             
             isSinging = true;
             resetState();
-            headphoneGuide.style.display = 'none'; // 안내문 숨기기
+            headphoneGuide.style.display = 'none';
             
             player.playVideo();
             mediaRecorder.start();
@@ -557,18 +551,14 @@
         function stopSinging() {
             if (!isSinging) return;
             isSinging = false;
+            isStoppingManually = true; // 사용자가 직접 중단했음을 알리는 플래그 설정
             
             if (player) {
                 player.pauseVideo();
                 player.seekTo(0);
             }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                // onstop 핸들러가 결과물을 표시하지 않도록 임시로 null 처리
-                const originalOnStop = mediaRecorder.onstop;
-                mediaRecorder.onstop = null;
-                mediaRecorder.stop();
-                // 다시 원래 핸들러로 복구하여, 노래가 자연스럽게 끝났을 때는 결과가 표시되도록 함
-                mediaRecorder.onstop = originalOnStop;
+                mediaRecorder.stop(); // onstop 핸들러가 플래그를 보고 녹음 결과를 표시하지 않음
             }
             
             disableNoSleep();
@@ -597,12 +587,13 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
+            isSinging = false; // 혹시 노래 중인 상태로 넘어올 경우를 대비
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.onstop = null; // 핸들러 제거 후 중지
+                isStoppingManually = true; // onstop 핸들러가 작동하지 않도록 설정
                 mediaRecorder.stop();
             }
             if (audioStream) {
@@ -624,7 +615,12 @@
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
             mediaRecorder.onstop = () => {
-                // 이 핸들러는 노래가 자연스럽게 끝났을 때만 호출됩니다.
+                if (isStoppingManually) {
+                    recordedChunks = []; // 수동 중단 시, 녹음된 데이터는 버림
+                    return; 
+                }
+                
+                // 노래가 자연스럽게 끝났을 때만 결과 표시
                 document.getElementById('resultArea').style.display = 'block';
                 const audioPlayer = document.getElementById('recordedAudio');
                 const downloadBtn = document.getElementById('downloadBtn');
