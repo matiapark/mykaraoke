@@ -130,13 +130,13 @@
             border-color: #ffc107;
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
         }
-
+        
         #show-playlist-btn .playlist-icon {
-            color: #28a745;
+            color: #28a745; /* 초록색 음표 */
             font-style: normal;
         }
         .view-toggle-buttons button.active .playlist-icon {
-            color: #212529;
+            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
         }
 
         #search-results-container {
@@ -628,38 +628,43 @@
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
+            
+            // 노래가 끝나면 다음 곡을 재생하거나, 노래방 세션을 종료합니다.
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
-                        // 다음 곡으로 자동 이동 및 재생
                         const nextSong = currentPlaylist[currentPlaylistIndex];
-                        document.getElementById('karaoke-title').textContent = `${nextSong.title} - ${nextSong.artist}`;
                         player.cueVideoById(nextSong.videoId);
-                        setTimeout(() => player.playVideo(), 500); // 로드 후 자동 재생
+                        document.getElementById('karaoke-title').textContent = `${nextSong.title} - ${nextSong.artist}`;
+                        setTimeout(() => player.playVideo(), 500); // 다음 곡 자동 재생
                     } else {
-                        // 플레이리스트가 모두 끝났을 때
-                        alert('플레이리스트 재생이 끝났습니다. 첫 곡으로 돌아갑니다.');
+                        // 플레이리스트의 마지막 곡 재생이 끝나면 첫 곡으로 돌아가고 대기합니다.
                         currentPlaylistIndex = 0;
-                        startKaraokeSession(currentPlaylist[currentPlaylistIndex], true);
+                        const firstSong = currentPlaylist[currentPlaylistIndex];
+                        player.cueVideoById(firstSong.videoId);
+                        document.getElementById('karaoke-title').textContent = `${firstSong.title} - ${firstSong.artist}`;
+                        
+                        document.getElementById('startBtn').disabled = false;
+                        document.getElementById('stopBtn').disabled = true;
+                        disableNoSleep(); // 자동 재생이 멈추므로 화면 꺼짐 방지 비디오도 중지
                     }
                 } else {
                     endSingingSession();
                 }
             }
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function startKaraokeSession(songData, isPlaylist = false) {
             isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
                 addRecentSong(songData);
             }
-            if (!isPlaylistMode || currentPlaylistIndex === 0) {
-                const startSound = document.getElementById('startSfx');
-                if (startSound) {
-                    startSound.currentTime = 0;
-                    startSound.play().catch(e => console.error("효과음 재생 실패:", e));
-                }
+            const startSound = document.getElementById('startSfx');
+            if (startSound) {
+                startSound.currentTime = 0;
+                startSound.play().catch(e => console.error("효과음 재생 실패:", e));
             }
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
@@ -670,7 +675,7 @@
             if (isIphone) isFirstPlayOnIphone = true;
             resetState();
             
-            const recordingUI = ['headphone-guide', 'lyrics-zoom-guide'];
+            const recordingUI = ['headphone-guide', 'lyrics-zoom-guide', 'resultArea'];
             recordingUI.forEach(id => {
                 document.getElementById(id).style.display = isPlaylistMode ? 'none' : 'flex';
             });
@@ -681,13 +686,6 @@
         document.getElementById('startBtn').onclick = startSinging;
 
         async function startSinging() {
-            if (player.getPlayerState() === YT.PlayerState.PAUSED) {
-                player.playVideo();
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
-                return;
-            }
-
             isStoppingManually = false;
             
             if (isPlaylistMode) {
@@ -714,16 +712,13 @@
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
+                    if (isStoppingManually) return;
                     document.getElementById('resultArea').style.display = 'block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
-
-                    if (isStoppingManually) return;
-
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
-                    
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
                     audioPlayer.src = url;
@@ -770,8 +765,6 @@
         
         function endSingingSession() {
             if (player) player.pauseVideo();
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
             
             if (!isPlaylistMode) {
                 disableNoSleep();
@@ -784,6 +777,8 @@
                     animationFrameId = null;
                 }
             }
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
         }
 
         function returnToSearchView() {
@@ -803,7 +798,6 @@
             searchInput.value = '';
             switchView('search');
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
