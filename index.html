@@ -131,7 +131,6 @@
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
         }
         
-        /* ▼▼▼ 수정된 부분 ▼▼▼ */
         #show-playlist-btn .playlist-icon {
             color: #28a745; /* 초록색 음표 */
             font-style: normal;
@@ -139,7 +138,6 @@
         .view-toggle-buttons button.active .playlist-icon {
             color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
         }
-        /* ▲▲▲ 수정된 부분 ▲▲▲ */
 
         #search-results-container {
             min-height: 150px;
@@ -294,7 +292,7 @@
           <button id="show-favorites-btn">⭐ 즐겨찾기</button>
           <button id="show-recents-btn">🕓 최근 부른 곡</button>
           <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
-          </div>
+      </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
           <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
       </div>
@@ -623,19 +621,24 @@
                 events: { 'onReady': () => console.log("✅ YouTube 준비됨"), 'onStateChange': onPlayerStateChange }
             });
         }
-
+        
+        // ▼▼▼ 수정된 부분 (상태 관리 로직 재정리) ▼▼▼
         function onPlayerStateChange(event) {
             if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
                 isFirstPlayOnIphone = false;
                 document.getElementById('mic-error-message').style.display = 'none';
             }
+            
+            // 노래가 끝나면 다음 곡을 재생하거나, 노래방 세션을 종료합니다.
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
-                        startKaraokeSession(currentPlaylist[currentPlaylistIndex], true);
+                        const nextSong = currentPlaylist[currentPlaylistIndex];
+                        player.cueVideoById(nextSong.videoId);
+                        document.getElementById('karaoke-title').textContent = `${nextSong.title} - ${nextSong.artist}`;
+                        setTimeout(() => player.playVideo(), 500); // 다음 곡 자동 재생
                     } else {
-                        isPlaylistMode = false;
                         alert('플레이리스트 재생이 끝났습니다.');
                         returnToSearchView();
                     }
@@ -664,7 +667,7 @@
             if (isIphone) isFirstPlayOnIphone = true;
             resetState();
             
-            const recordingUI = ['headphone-guide', 'lyrics-zoom-guide'];
+            const recordingUI = ['headphone-guide', 'lyrics-zoom-guide', 'resultArea'];
             recordingUI.forEach(id => {
                 document.getElementById(id).style.display = isPlaylistMode ? 'none' : 'flex';
             });
@@ -675,7 +678,6 @@
         document.getElementById('startBtn').onclick = startSinging;
 
         async function startSinging() {
-            document.getElementById('headphone-guide').style.display = 'none';
             isStoppingManually = false;
             
             if (isPlaylistMode) {
@@ -686,6 +688,7 @@
                 return;
             }
             
+            document.getElementById('headphone-guide').style.display = 'none';
             const errorMessageDiv = document.getElementById('mic-error-message');
             errorMessageDiv.style.display = 'none';
             try {
@@ -701,16 +704,13 @@
                 mediaRecorder = new MediaRecorder(audioStream);
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
+                    if (isStoppingManually) return;
                     document.getElementById('resultArea').style.display = 'block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
-
-                    if (isStoppingManually) return;
-
                     const audioPlayer = document.getElementById('recordedAudio');
                     const downloadBtn = document.getElementById('downloadBtn');
                     audioPlayer.style.display = 'block';
-                    
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
                     audioPlayer.src = url;
@@ -768,10 +768,9 @@
                     cancelAnimationFrame(animationFrameId);
                     animationFrameId = null;
                 }
-            } else {
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
             }
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
         }
 
         function returnToSearchView() {
@@ -780,6 +779,7 @@
             if (player && player.stopVideo) player.stopVideo();
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 isStoppingManually = true;
+                mediaRecorder.onstop = null;
                 mediaRecorder.stop();
             }
             if (audioContext && audioContext.state !== 'closed') audioContext.close();
@@ -790,6 +790,7 @@
             searchInput.value = '';
             switchView('search');
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
