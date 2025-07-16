@@ -622,7 +622,6 @@
             });
         }
         
-        // ▼▼▼ 수정된 부분 ▼▼▼
         function onPlayerStateChange(event) {
             if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
                 isFirstPlayOnIphone = false;
@@ -659,8 +658,8 @@
                 }
             }
         }
-        // ▲▲▲ 수정된 부분 ▲▲▲
 
+        // ▼▼▼ 수정된 부분 ▼▼▼
         function startKaraokeSession(songData, isPlaylist = false) {
             isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
@@ -674,17 +673,26 @@
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
+            document.getElementById('lyrics-zoom-guide').style.display = 'block'; // 가사 안내 문구 항상 표시
             player.cueVideoById(songData.videoId);
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             if (isIphone) isFirstPlayOnIphone = true;
             resetState();
             
-            const recordingUI = ['headphone-guide', 'lyrics-zoom-guide', 'resultArea'];
+            // 녹음 관련 UI는 플레이리스트가 아닐 때만 표시
+            const recordingUI = ['headphone-guide', 'resultArea'];
             recordingUI.forEach(id => {
-                document.getElementById(id).style.display = isPlaylistMode ? 'none' : 'flex';
+                const element = document.getElementById(id);
+                if(element) element.style.display = isPlaylistMode ? 'none' : 'flex';
             });
+            // 플레이리스트 모드일 때도 headphone-guide는 숨김 처리
+            if(isPlaylistMode) {
+                const headphoneGuide = document.getElementById('headphone-guide');
+                if(headphoneGuide) headphoneGuide.style.display = 'none';
+            }
         }
+        // ▲▲▲ 수정된 부분 ▲▲▲
 
         document.getElementById('backBtn').onclick = returnToSearchView;
         document.getElementById('stopBtn').onclick = endSingingSession;
