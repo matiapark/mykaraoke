@@ -551,14 +551,14 @@
         function stopSinging() {
             if (!isSinging) return;
             isSinging = false;
-            isStoppingManually = true; // 사용자가 직접 중단했음을 알리는 플래그 설정
+            isStoppingManually = true;
             
             if (player) {
                 player.pauseVideo();
                 player.seekTo(0);
             }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop(); // onstop 핸들러가 플래그를 보고 녹음 결과를 표시하지 않음
+                mediaRecorder.stop();
             }
             
             disableNoSleep();
@@ -587,13 +587,14 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            isSinging = false; // 혹시 노래 중인 상태로 넘어올 경우를 대비
+            isSinging = false;
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                isStoppingManually = true; // onstop 핸들러가 작동하지 않도록 설정
+                isStoppingManually = true;
+                mediaRecorder.onstop = null;
                 mediaRecorder.stop();
             }
             if (audioStream) {
@@ -616,11 +617,10 @@
             };
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
-                    recordedChunks = []; // 수동 중단 시, 녹음된 데이터는 버림
+                    recordedChunks = [];
                     return; 
                 }
                 
-                // 노래가 자연스럽게 끝났을 때만 결과 표시
                 document.getElementById('resultArea').style.display = 'block';
                 const audioPlayer = document.getElementById('recordedAudio');
                 const downloadBtn = document.getElementById('downloadBtn');
