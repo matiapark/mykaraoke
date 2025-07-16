@@ -653,35 +653,7 @@
             }
             
             if (event.data === YT.PlayerState.ENDED) {
-                if (isPlaylistMode) {
-                    currentPlaylistIndex++;
-                    if (currentPlaylistIndex < currentPlaylist.length) {
-                        const nextSong = currentPlaylist[currentPlaylistIndex];
-                        player.cueVideoById(nextSong.videoId);
-                        document.getElementById('karaoke-title').textContent = `${nextSong.title} - ${nextSong.artist}`;
-                        setTimeout(() => player.playVideo(), 500); 
-                    } else {
-                        currentPlaylistIndex = 0;
-                        const firstSong = currentPlaylist[currentPlaylistIndex];
-                        player.cueVideoById(firstSong.videoId);
-                        document.getElementById('karaoke-title').textContent = `${firstSong.title} - ${firstSong.artist}`;
-                        document.getElementById('startBtn').disabled = false;
-                        document.getElementById('stopBtn').disabled = true;
-                        disableNoSleep();
-                    }
-                } else {
-                    isStoppingManually = false;
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
-                    }
-                    disableNoSleep();
-                    if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-                    if (audioContext && audioContext.state !== 'closed') audioContext.close();
-                    if(animationFrameId) {
-                        cancelAnimationFrame(animationFrameId);
-                        animationFrameId = null;
-                    }
-                }
+                endSingingSession(true); // 노래가 끝나면 isPlaylistNext=true 로 호출
             }
         }
 
@@ -800,47 +772,54 @@
             });
         }
         
-        function endSingingSession() {
+        function endSingingSession(isSongFinished = false) {
             isStoppingManually = true;
 
-            // 1. 플레이어는 정지하고 처음으로 되돌립니다.
+            // 1. 플레이어 상태 처리
             if (player) {
-                player.pauseVideo();
-                player.seekTo(0);
+                if (isPlaylistMode && isSongFinished) {
+                     // 플레이리스트 모드이고 노래가 자연스럽게 끝난 경우, 다음 곡으로 넘어감
+                    currentPlaylistIndex++;
+                    if (currentPlaylistIndex < currentPlaylist.length) {
+                        const nextSong = currentPlaylist[currentPlaylistIndex];
+                        startKaraokeSession(nextSong, true);
+                        setTimeout(() => startSinging(), 500); // 다음 곡 자동 시작
+                        return; // 함수 종료
+                    } else {
+                        // 플레이리스트 마지막 곡이면 처음으로
+                        currentPlaylistIndex = 0;
+                        const firstSong = currentPlaylist[currentPlaylistIndex];
+                        startKaraokeSession(firstSong, true);
+                        return; // 함수 종료
+                    }
+                } else {
+                    // 그 외 모든 경우 (중단 버튼, 일반 모드 종료 등)
+                    player.pauseVideo();
+                    player.seekTo(0);
+                }
             }
             
             // 2. 오디오 관련 모든 리소스를 중지하고, 참조를 완전히 제거(null)합니다.
-            if (!isPlaylistMode) {
-                disableNoSleep();
-                
-                // 애니메이션 프레임 중지
-                if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                    animationFrameId = null;
-                }
-
-                // 녹음기 이벤트 핸들러를 먼저 제거하고 중지
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.onstop = null;
-                    mediaRecorder.ondataavailable = null;
-                    mediaRecorder.stop();
-                }
-                mediaRecorder = null; // 객체 참조 제거
-
-                // 오디오 스트림의 모든 트랙 중지
-                if (audioStream) {
-                    audioStream.getTracks().forEach(track => track.stop());
-                }
-                audioStream = null; // 객체 참조 제거
-
-                // 오디오 컨텍스트 닫기
-                if (audioContext && audioContext.state !== 'closed') {
-                    audioContext.close();
-                }
-                audioContext = null; // 객체 참조 제거
-                
-                pitch = null; // pitch 객체 참조 제거
+            disableNoSleep();
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
             }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.onstop = null;
+                mediaRecorder.ondataavailable = null;
+                mediaRecorder.stop();
+            }
+            mediaRecorder = null;
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+            audioStream = null;
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+            }
+            audioContext = null;
+            pitch = null;
             
             // 3. UI 상태를 초기화합니다.
             document.getElementById('resultArea').style.display = 'none';
@@ -849,17 +828,10 @@
         }
 
         function returnToSearchView() {
-            isPlaylistMode = false;
-            disableNoSleep();
-            if (player && typeof player.stopVideo === 'function') player.stopVideo();
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                isStoppingManually = true;
-                mediaRecorder.onstop = null;
-                mediaRecorder.stop();
-            }
-            if (audioContext && audioContext.state !== 'closed') audioContext.close();
-            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            endSingingSession(); // 리소스 정리는 endSingingSession에 위임
+            if (player) player.stopVideo(); // 화면 전환 시에는 비디오를 완전히 중단
+
+            isPlaylistMode = false; // 플레이리스트 모드 해제
             karaokeView.style.display = 'none';
             searchView.style.display = 'block';
             searchInput.value = '';
