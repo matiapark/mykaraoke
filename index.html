@@ -572,6 +572,12 @@
             resetState();
             headphoneGuide.style.display = 'none';
             
+            const resultArea = document.getElementById('resultArea');
+            resultArea.style.display = 'block';
+            resultArea.querySelector('h4').textContent = '녹음 중...';
+            document.getElementById('recordedAudio').style.display = 'none';
+            document.getElementById('downloadBtn').style.display = 'none';
+            
             player.playVideo();
             mediaRecorder.start();
             getPitch();
