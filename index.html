@@ -598,12 +598,16 @@
                 mediaRecorder.onstop = null;
                 mediaRecorder.stop();
             }
-            if (audioStream) {
-                audioStream.getTracks().forEach(track => track.stop());
-            }
+            
+            // ▼▼▼▼▼ 잡음 제거를 위한 순서 변경 ▼▼▼▼▼
             if (audioContext && audioContext.state !== 'closed') {
                 await audioContext.close();
             }
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+            // ▲▲▲▲▲ 잡음 제거를 위한 순서 변경 ▲▲▲▲▲
+            
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
