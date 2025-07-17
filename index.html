@@ -182,7 +182,6 @@
             transition: transform 0.2s ease, color 0.2s ease;
             color: #fff;
         }
-        /* ▼▼▼▼▼ 추가된 스타일 ▼▼▼▼▼ */
         .playlist-move-btn {
             font-size: 16px;
             background: none;
@@ -194,7 +193,6 @@
         .playlist-move-btn:hover {
             color: #ffc107;
         }
-        /* ▲▲▲▲▲ 추가된 스타일 ▲▲▲▲▲ */
 
         .favorite-btn:hover, .playlist-add-btn:hover, .playlist-remove-btn:hover {
             transform: scale(1.2);
@@ -459,9 +457,9 @@
         function onPlayerStateChange(event) {
             // 노래가 끝났을 때
             if (event.data === YT.PlayerState.ENDED) {
-                if (!isSinging && !isPlaylistMode) return;
-                
-                if(isPlaylistMode) {
+
+                // 1. 플레이리스트 모드인 경우
+                if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
                         const nextSong = currentPlaylist[currentPlaylistIndex];
@@ -470,22 +468,28 @@
                         alert('플레이리스트가 종료되었습니다.');
                         returnToSearchView();
                     }
-                    return;
-                }
                 
-                isSinging = false;
-                isStoppingManually = false; 
-                
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                }
-                
-                stopBtn.disabled = true;
-                startBtn.disabled = false;
-                disableNoSleep();
-                if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                    animationFrameId = null;
+                // 2. 단일 곡 모드인 경우
+                } else {
+                    // 노래가 재생 중인 상태가 아니었다면 아무것도 하지 않음
+                    if (!isSinging) return;
+
+                    isSinging = false;
+                    isStoppingManually = false; // 자연스러운 종료이므로 false로 설정
+
+                    // 녹음 중이었다면, 녹음을 중지하여 결과가 표시되도록 함
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+
+                    // UI 업데이트
+                    stopBtn.disabled = true;
+                    startBtn.disabled = false;
+                    disableNoSleep();
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
                 }
             }
         }
@@ -551,28 +555,30 @@
         /** '시작' 버튼: 준비된 리소스로 노래와 녹음을 시작합니다. */
         function startSinging() {
             if (isPreparing || !player) return;
-            // 일반 모드에서는 mediaRecorder도 준비되어야 함
-            if (!isPlaylistMode && (!mediaRecorder || isSinging)) return;
 
-            // 플레이리스트 모드일 때는 노래 중이 아니어야 시작 가능 (일시정지 후 다시 시작)
+            // 플레이리스트 모드일 때
             if (isPlaylistMode) {
                  if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
                     player.playVideo();
-                    stopBtn.disabled = false; // 중단(일시정지) 버튼 활성화
+                    stopBtn.disabled = false;
                  }
-            } else { // 일반 모드
-                isSinging = true;
-                resetState();
-                headphoneGuide.style.display = 'none';
-                
-                player.playVideo();
-                mediaRecorder.start();
-                getPitch();
-                enableNoSleep();
-                
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
+                 return; // 플레이리스트 모드는 여기서 종료
             }
+
+            // --- 이하 단일 곡 모드 로직 ---
+            if (!mediaRecorder || isSinging) return;
+
+            isSinging = true;
+            resetState();
+            headphoneGuide.style.display = 'none';
+            
+            player.playVideo();
+            mediaRecorder.start();
+            getPitch();
+            enableNoSleep();
+            
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
         }
 
         /** '중단' 버튼: 모드에 따라 다르게 작동합니다. */
@@ -762,7 +768,6 @@
             renderSongList(playlist);
         }
 
-        // ▼▼▼▼▼ 추가된 함수 ▼▼▼▼▼
         function movePlaylistItem(index, direction) {
             let playlist = getPlaylist();
             if (direction === 'up' && index > 0) {
@@ -773,7 +778,6 @@
             savePlaylist(playlist);
             renderPlaylist();
         }
-        // ▲▲▲▲▲ 추가된 함수 ▲▲▲▲▲
 
         function startNewSearch() {
             currentQuery = searchInput.value.trim();
@@ -840,7 +844,6 @@
                 const buttonsDiv = document.createElement('div');
                 buttonsDiv.className = 'list-buttons';
 
-                // ▼▼▼▼▼ 수정된 부분 ▼▼▼▼▼
                 if (currentView === 'playlist') {
                     const upBtn = document.createElement('button');
                     upBtn.innerHTML = '▲';
@@ -860,7 +863,6 @@
                     buttonsDiv.appendChild(upBtn);
                     buttonsDiv.appendChild(downBtn);
                 }
-                // ▲▲▲▲▲ 수정된 부분 ▲▲▲▲▲
 
                 const playlistBtn = document.createElement('span');
                 if (currentView === 'playlist') {
