@@ -299,8 +299,7 @@
               <button id="search-button">검색</button>
           </div>
       </header>
-      
-      <div id="mic-status" style="padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: bold; cursor: pointer;" title="클릭하여 마이크 재확인"></div>
+
       <div class="view-toggle-buttons">
           <button id="show-search-btn" class="active">전체 검색</button>
           <button id="show-favorites-btn">⭐ 즐겨찾기</button>
@@ -367,7 +366,7 @@
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
-        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, micStatus;
+        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
 
         // --- 초기화 로직 ---
@@ -392,7 +391,6 @@
             backBtn = document.getElementById('backBtn');
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
-            micStatus = document.getElementById('mic-status');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -400,11 +398,6 @@
                 canvasCtx = canvas.getContext('2d');
             }
             
-            // ▼▼▼▼▼ 마이크 확인 기능 호출 추가 ▼▼▼▼▼
-            micStatus.addEventListener('click', checkMicrophone); // 클릭해서 재확인 기능 추가
-            checkMicrophone();
-            // ▲▲▲▲▲ 마이크 확인 기능 호출 추가 ▲▲▲▲▲
-
             // 이벤트 리스너 할당
             showSearchBtn.addEventListener('click', () => switchView('search'));
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
@@ -475,14 +468,11 @@
                     }
                 } else {
                     if (!isSinging) return;
-
                     isSinging = false;
                     isStoppingManually = false; 
-
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
-
                     stopBtn.disabled = true;
                     startBtn.disabled = false;
                     disableNoSleep();
@@ -495,40 +485,8 @@
         }
 
         // --- 노래방 핵심 로직 ---
-        
-        // ▼▼▼▼▼ 마이크 확인 기능 추가 ▼▼▼▼▼
-        async function checkMicrophone() {
-            if (!micStatus) return;
-            micStatus.textContent = '🎤 마이크 상태 확인 중...';
-            micStatus.style.color = '#f0f0f0';
-            micStatus.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
 
-            try {
-                // 권한 확인을 위해 스트림 요청
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // 성공 시: 마이크 연결됨
-                micStatus.textContent = '🎤 마이크가 정상적으로 연결되었습니다.';
-                micStatus.style.color = '#1DB954'; // 초록색
-                micStatus.style.backgroundColor = 'rgba(29, 185, 84, 0.1)';
-                
-                // 확인용으로 얻은 스트림은 바로 종료하여 리소스를 해제합니다.
-                stream.getTracks().forEach(track => track.stop());
-
-            } catch (err) {
-                // 실패 시: 원인에 따라 다른 메시지 표시
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    micStatus.textContent = '⚠️ 마이크 권한이 필요합니다. 주소창의 자물쇠를 클릭해 허용해주세요.';
-                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                    micStatus.textContent = '❌ 연결된 마이크를 찾을 수 없습니다. 마이크를 연결해주세요.';
-                } else {
-                    micStatus.textContent = '❓ 마이크 상태를 확인할 수 없습니다.';
-                }
-                micStatus.style.color = '#ffc107'; // 노란색
-                micStatus.style.backgroundColor = 'rgba(255, 193, 7, 0.1)';
-            }
-        }
-        // ▲▲▲▲▲ 마이크 확인 기능 추가 ▲▲▲▲▲
-
+        /** 노래방 화면으로 전환하고 노래를 준비합니다. */
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -547,43 +505,36 @@
                 addRecentSong(songData);
             }
             
-            startBtn.disabled = true;
-            stopBtn.disabled = true;
-            startBtn.textContent = '장비 준비 중...';
-            
-            try {
-                if (player) {
-                    player.cueVideoById(songData.videoId);
-                }
-
-                const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
-                
-                if (!isPlaylistMode) {
-                    audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    audioContext = new AudioContext();
-                    pitch = await new Promise((resolve, reject) => {
-                        ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, (err, model) => {
-                            if (err) return reject(err);
-                            resolve(model);
-                        });
-                    });
-                    mediaRecorder = new MediaRecorder(audioStream);
-                    setupMediaRecorder();
-                }
-
-                startBtn.disabled = false;
-                startBtn.textContent = '▶ 시작';
-                
-            } catch (err) {
-                console.error("오디오 준비 실패:", err);
-                micErrorMessage.textContent = "마이크 연결을 확인해주세요. 권한이 없다면 주소창의 자물쇠를 클릭해 허용해주세요.";
-                micErrorMessage.style.display = 'block';
-            } finally {
-                isPreparing = false;
+            if (player) {
+                player.cueVideoById(songData.videoId);
             }
+
+            // ▼▼▼▼▼ 마이크 상태 사전 확인 (권한 요청 없음) ▼▼▼▼▼
+            if (!isPlaylistMode && navigator.permissions) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                    if (permissionStatus.state === 'denied') {
+                        micErrorMessage.textContent = '마이크 권한이 차단되었습니다. 브라우저 설정에서 허용해주세요.';
+                        micErrorMessage.style.display = 'block';
+                        startBtn.disabled = true;
+                    } else {
+                        startBtn.disabled = false;
+                    }
+                } catch(e) {
+                    console.warn("Permissions API를 지원하지 않는 브라우저입니다.", e);
+                    startBtn.disabled = false;
+                }
+            } else {
+                startBtn.disabled = false;
+            }
+            // ▲▲▲▲▲ 마이크 상태 사전 확인 (권한 요청 없음) ▲▲▲▲▲
+
+            stopBtn.disabled = true;
+            isPreparing = false;
         }
 
-        function startSinging() {
+        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
+        async function startSinging() {
             if (isPreparing || !player) return;
 
             if (isPlaylistMode) {
@@ -594,27 +545,53 @@
                  return;
             }
 
-            if (!mediaRecorder || isSinging) return;
+            if (isSinging) return;
 
-            isSinging = true;
-            resetState();
-            headphoneGuide.style.display = 'none';
-            
-            const resultArea = document.getElementById('resultArea');
-            resultArea.style.display = 'block';
-            resultArea.querySelector('h4').textContent = '녹음 중...';
-            document.getElementById('recordedAudio').style.display = 'none';
-            document.getElementById('downloadBtn').style.display = 'none';
-            
-            player.playVideo();
-            mediaRecorder.start();
-            getPitch();
-            enableNoSleep();
-            
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
+            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 ▼▼▼▼▼ ---
+            try {
+                const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+                audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // --- 권한 획득 성공 시 로직 ---
+                isSinging = true;
+                resetState();
+                headphoneGuide.style.display = 'none';
+                
+                const resultArea = document.getElementById('resultArea');
+                resultArea.style.display = 'block';
+                resultArea.querySelector('h4').textContent = '녹음 중...';
+                document.getElementById('recordedAudio').style.display = 'none';
+                document.getElementById('downloadBtn').style.display = 'none';
+
+                audioContext = new AudioContext();
+                pitch = await new Promise((resolve, reject) => {
+                    ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, (err, model) => {
+                        if (err) return reject(err);
+                        resolve(model);
+                    });
+                });
+                mediaRecorder = new MediaRecorder(audioStream);
+                setupMediaRecorder();
+
+                player.playVideo();
+                mediaRecorder.start();
+                getPitch();
+                enableNoSleep();
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+
+            } catch (err) {
+                // --- 권한 획득 실패 시 로직 ---
+                console.error("오디오 시작 실패:", err);
+                micErrorMessage.textContent = "마이크 사용이 거부되었거나 오류가 발생했습니다. 권한을 확인해주세요.";
+                micErrorMessage.style.display = 'block';
+                isSinging = false;
+            }
+             // --- ▲▲▲▲▲ 마이크 권한 요청 및 오디오 리소스 생성 ▲▲▲▲▲ ---
         }
 
+        /** '중단' 버튼: 모드에 따라 다르게 작동합니다. */
         function stopSinging() {
             if (isPlaylistMode) {
                 if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -644,6 +621,7 @@
             }
         }
 
+        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
             if (player) player.stopVideo();
             await cleanupAudioResources();
@@ -657,6 +635,7 @@
             switchView('search');
         }
 
+        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             isSinging = false;
             isStoppingManually = false;
@@ -683,6 +662,7 @@
             audioContext = null;
         }
         
+        // --- 헬퍼 함수 ---
         function setupMediaRecorder() {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -1007,5 +987,3 @@
     </script>
 </body>
 </html>
-}
-노래가 끝나면 '녹음 완료!'와 플레이 박스가 같이 나와야 하는데 안나와.
