@@ -299,6 +299,8 @@
               <button id="search-button">검색</button>
           </div>
       </header>
+      
+      <div id="mic-status" style="padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: bold; cursor: pointer;" title="클릭하여 마이크 재확인"></div>
       <div class="view-toggle-buttons">
           <button id="show-search-btn" class="active">전체 검색</button>
           <button id="show-favorites-btn">⭐ 즐겨찾기</button>
@@ -354,8 +356,7 @@
 
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
-    
-    <audio id="welcomeSfx" src="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/Welcome_mykaraoke.mp3" preload="auto"></audio>
+
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         // --- 전역 변수 ---
@@ -366,22 +367,11 @@
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
-        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide;
+        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, micStatus;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
 
         // --- 초기화 로직 ---
         window.onload = () => {
-            // ▼▼▼▼▼ 추가된 부분 ▼▼▼▼▼
-            const welcomeSound = document.getElementById('welcomeSfx');
-            if (welcomeSound) {
-                // 브라우저의 자동재생 정책으로 인해 사용자의 첫 상호작용 없이는 소리가 나지 않을 수 있습니다.
-                // 이를 대비해 .catch()로 에러를 조용히 처리합니다.
-                welcomeSound.play().catch(error => {
-                    console.warn("환영 음성 자동 재생 실패: 사용자의 상호작용이 필요할 수 있습니다.", error);
-                });
-            }
-            // ▲▲▲▲▲ 추가된 부분 ▲▲▲▲▲
-
             // DOM 요소 할당
             searchView = document.getElementById('search-view');
             karaokeView = document.getElementById('karaoke-view');
@@ -402,12 +392,18 @@
             backBtn = document.getElementById('backBtn');
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
+            micStatus = document.getElementById('mic-status');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
                 canvasCtx = canvas.getContext('2d');
             }
+            
+            // ▼▼▼▼▼ 마이크 확인 기능 호출 추가 ▼▼▼▼▼
+            micStatus.addEventListener('click', checkMicrophone); // 클릭해서 재확인 기능 추가
+            checkMicrophone();
+            // ▲▲▲▲▲ 마이크 확인 기능 호출 추가 ▲▲▲▲▲
 
             // 이벤트 리스너 할당
             showSearchBtn.addEventListener('click', () => switchView('search'));
@@ -497,8 +493,42 @@
                 }
             }
         }
-        
+
         // --- 노래방 핵심 로직 ---
+        
+        // ▼▼▼▼▼ 마이크 확인 기능 추가 ▼▼▼▼▼
+        async function checkMicrophone() {
+            if (!micStatus) return;
+            micStatus.textContent = '🎤 마이크 상태 확인 중...';
+            micStatus.style.color = '#f0f0f0';
+            micStatus.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+
+            try {
+                // 권한 확인을 위해 스트림 요청
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // 성공 시: 마이크 연결됨
+                micStatus.textContent = '🎤 마이크가 정상적으로 연결되었습니다.';
+                micStatus.style.color = '#1DB954'; // 초록색
+                micStatus.style.backgroundColor = 'rgba(29, 185, 84, 0.1)';
+                
+                // 확인용으로 얻은 스트림은 바로 종료하여 리소스를 해제합니다.
+                stream.getTracks().forEach(track => track.stop());
+
+            } catch (err) {
+                // 실패 시: 원인에 따라 다른 메시지 표시
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    micStatus.textContent = '⚠️ 마이크 권한이 필요합니다. 주소창의 자물쇠를 클릭해 허용해주세요.';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    micStatus.textContent = '❌ 연결된 마이크를 찾을 수 없습니다. 마이크를 연결해주세요.';
+                } else {
+                    micStatus.textContent = '❓ 마이크 상태를 확인할 수 없습니다.';
+                }
+                micStatus.style.color = '#ffc107'; // 노란색
+                micStatus.style.backgroundColor = 'rgba(255, 193, 7, 0.1)';
+            }
+        }
+        // ▲▲▲▲▲ 마이크 확인 기능 추가 ▲▲▲▲▲
+
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -518,8 +548,8 @@
             }
             
             startBtn.disabled = true;
-            startBtn.textContent = '장비 준비 중...';
             stopBtn.disabled = true;
+            startBtn.textContent = '장비 준비 중...';
             
             try {
                 if (player) {
@@ -665,8 +695,11 @@
                 }
                 
                 document.getElementById('resultArea').style.display = 'block';
+                const resultTitle = document.querySelector('#resultArea h4');
+                resultTitle.textContent = '녹음 완료!';
                 const audioPlayer = document.getElementById('recordedAudio');
                 const downloadBtn = document.getElementById('downloadBtn');
+                audioPlayer.style.display = 'block';
                 const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
                 audioPlayer.src = url;
@@ -974,3 +1007,5 @@
     </script>
 </body>
 </html>
+}
+노래가 끝나면 '녹음 완료!'와 플레이 박스가 같이 나와야 하는데 안나와.
