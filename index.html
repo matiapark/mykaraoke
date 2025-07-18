@@ -354,7 +354,8 @@
 
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
-
+    
+    <audio id="welcomeSfx" src="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/Welcome_mykaraoke.mp3" preload="auto"></audio>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         // --- 전역 변수 ---
@@ -370,6 +371,17 @@
 
         // --- 초기화 로직 ---
         window.onload = () => {
+            // ▼▼▼▼▼ 추가된 부분 ▼▼▼▼▼
+            const welcomeSound = document.getElementById('welcomeSfx');
+            if (welcomeSound) {
+                // 브라우저의 자동재생 정책으로 인해 사용자의 첫 상호작용 없이는 소리가 나지 않을 수 있습니다.
+                // 이를 대비해 .catch()로 에러를 조용히 처리합니다.
+                welcomeSound.play().catch(error => {
+                    console.warn("환영 음성 자동 재생 실패: 사용자의 상호작용이 필요할 수 있습니다.", error);
+                });
+            }
+            // ▲▲▲▲▲ 추가된 부분 ▲▲▲▲▲
+
             // DOM 요소 할당
             searchView = document.getElementById('search-view');
             karaokeView = document.getElementById('karaoke-view');
@@ -455,10 +467,7 @@
         
         // --- 상태 관리 ---
         function onPlayerStateChange(event) {
-            // 노래가 끝났을 때
             if (event.data === YT.PlayerState.ENDED) {
-
-                // 1. 플레이리스트 모드인 경우
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
@@ -468,21 +477,16 @@
                         alert('플레이리스트가 종료되었습니다.');
                         returnToSearchView();
                     }
-                
-                // 2. 단일 곡 모드인 경우
                 } else {
-                    // 노래가 재생 중인 상태가 아니었다면 아무것도 하지 않음
                     if (!isSinging) return;
 
                     isSinging = false;
-                    isStoppingManually = false; // 자연스러운 종료이므로 false로 설정
+                    isStoppingManually = false; 
 
-                    // 녹음 중이었다면, 녹음을 중지하여 결과가 표시되도록 함
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
 
-                    // UI 업데이트
                     stopBtn.disabled = true;
                     startBtn.disabled = false;
                     disableNoSleep();
@@ -495,8 +499,6 @@
         }
         
         // --- 노래방 핵심 로직 ---
-
-        /** 노래방 화면으로 전환하고 모든 오디오 리소스를 준비합니다. */
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -516,8 +518,8 @@
             }
             
             startBtn.disabled = true;
-            stopBtn.disabled = true;
             startBtn.textContent = '장비 준비 중...';
+            stopBtn.disabled = true;
             
             try {
                 if (player) {
@@ -526,7 +528,6 @@
 
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 
-                // 플레이리스트 모드가 아닐 때만 마이크/녹음 관련 기능 준비
                 if (!isPlaylistMode) {
                     audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                     audioContext = new AudioContext();
@@ -552,20 +553,17 @@
             }
         }
 
-        /** '시작' 버튼: 준비된 리소스로 노래와 녹음을 시작합니다. */
         function startSinging() {
             if (isPreparing || !player) return;
 
-            // 플레이리스트 모드일 때
             if (isPlaylistMode) {
                  if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
                     player.playVideo();
                     stopBtn.disabled = false;
                  }
-                 return; // 플레이리스트 모드는 여기서 종료
+                 return;
             }
 
-            // --- 이하 단일 곡 모드 로직 ---
             if (!mediaRecorder || isSinging) return;
 
             isSinging = true;
@@ -587,15 +585,12 @@
             stopBtn.disabled = false;
         }
 
-        /** '중단' 버튼: 모드에 따라 다르게 작동합니다. */
         function stopSinging() {
             if (isPlaylistMode) {
-                // 플레이리스트 모드: 일시정지 기능
                 if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                     player.pauseVideo();
                 }
             } else {
-                // 일반 모드: 처음부터 다시 시작 기능
                 if (!isSinging) return;
                 isSinging = false;
                 isStoppingManually = true;
@@ -619,7 +614,6 @@
             }
         }
 
-        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
             if (player) player.stopVideo();
             await cleanupAudioResources();
@@ -633,7 +627,6 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             isSinging = false;
             isStoppingManually = false;
@@ -660,7 +653,6 @@
             audioContext = null;
         }
         
-        // --- 헬퍼 함수 ---
         function setupMediaRecorder() {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
