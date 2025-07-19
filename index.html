@@ -509,26 +509,8 @@
                 player.cueVideoById(songData.videoId);
             }
 
-            // ▼▼▼▼▼ 마이크 상태 사전 확인 (권한 요청 없음) ▼▼▼▼▼
-            if (!isPlaylistMode && navigator.permissions) {
-                try {
-                    const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
-                    if (permissionStatus.state === 'denied') {
-                        micErrorMessage.textContent = '마이크 권한이 차단되었습니다. 브라우저 설정에서 허용해주세요.';
-                        micErrorMessage.style.display = 'block';
-                        startBtn.disabled = true;
-                    } else {
-                        startBtn.disabled = false;
-                    }
-                } catch(e) {
-                    console.warn("Permissions API를 지원하지 않는 브라우저입니다.", e);
-                    startBtn.disabled = false;
-                }
-            } else {
-                startBtn.disabled = false;
-            }
-            // ▲▲▲▲▲ 마이크 상태 사전 확인 (권한 없음) ▲▲▲▲▲
-
+            // '시작' 버튼을 항상 활성화하여 사용자가 누를 수 있도록 함
+            startBtn.disabled = false;
             stopBtn.disabled = true;
             isPreparing = false;
         }
@@ -553,6 +535,7 @@
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
                 // --- 권한 획득 성공 시 로직 ---
+                micErrorMessage.style.display = 'none'; // 이전 오류 메시지 숨기기
                 isSinging = true;
                 resetState();
                 headphoneGuide.style.display = 'none';
@@ -584,6 +567,8 @@
             } catch (err) {
                 // --- 권한 획득 실패 시 로직 ---
                 console.error("오디오 시작 실패:", err);
+                // 사용자가 권한을 거부했을 때 명확한 안내 메시지 표시
+                micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
             }
