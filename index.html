@@ -527,7 +527,7 @@
             } else {
                 startBtn.disabled = false;
             }
-            // ▲▲▲▲▲ 마이크 상태 사전 확인 (권한 요청 없음) ▲▲▲▲▲
+            // ▲▲▲▲▲ 마이크 상태 사전 확인 (권한 없음) ▲▲▲▲▲
 
             stopBtn.disabled = true;
             isPreparing = false;
@@ -584,7 +584,6 @@
             } catch (err) {
                 // --- 권한 획득 실패 시 로직 ---
                 console.error("오디오 시작 실패:", err);
-                micErrorMessage.textContent = "마이크 사용이 거부되었거나 오류가 발생했습니다. 권한을 확인해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
             }
