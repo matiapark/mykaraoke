@@ -1,8 +1,361 @@
-<video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나의 노래방</title>
+    <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
+    <style>
+        /* 전체 페이지 스타일 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            text-align: center;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        h2 { margin-top: 0; }
+
+        /* --- 1. 검색 화면 스타일 --- */
+        #search-view {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 35px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .title-wrapper h2 {
+            font-size: 2.8em;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 20px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5);
+        }
+        
+        .decoration-container {
+            width: 100px;
+            height: 60px;
+            position: relative;
+        }
+
+        .star, .balloon {
+            position: absolute;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .star {
+            width: 10px;
+            height: 10px;
+            background-color: yellow;
+            clip-path: polygon(50% 0%, 61.8% 38.2%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 75%, 19.1% 100%, 30.9% 61.8%, 0% 38.2%, 38.2% 38.2%);
+        }
+
+        .balloon {
+            width: 12px;
+            height: 16px;
+            background-color: red;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            transform: rotate(-15deg);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); opacity: 0.9; }
+            50% { transform: translateY(-10px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0px); opacity: 0.9; }
+        }
+
+        .search-box {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        #search-input {
+            flex-grow: 1;
+            padding: 10px 25px;
+            font-size: 16px;
+            border: none;
+            outline: none;
+            color: #333;
+            background: #f0f0f0;
+        }
+
+        #search-button {
+            padding: 10px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            background: #ffc107;
+            color: #212529;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .view-toggle-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
+        }
+        .view-toggle-buttons button {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #f0f0f0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .view-toggle-buttons button.active {
+            background-color: #ffc107;
+            color: #212529;
+            border-color: #ffc107;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+        }
+        
+        #show-playlist-btn .playlist-icon {
+            color: #28a745; /* 초록색 음표 */
+            font-style: normal;
+        }
+        .view-toggle-buttons button.active .playlist-icon {
+            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
+        }
+
+        #search-results-container {
+            min-height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #search-results {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: calc(100vh - 510px);
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: left;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .song-info {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .list-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .favorite-btn, .playlist-add-btn, .playlist-remove-btn {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s ease, color 0.2s ease;
+            color: #fff;
+        }
+        .playlist-move-btn {
+            font-size: 16px;
+            background: none;
+            border: none;
+            color: #f0f0f0;
+            padding: 5px 8px;
+            cursor: pointer;
+        }
+        .playlist-move-btn:hover {
+            color: #ffc107;
+        }
+
+        .favorite-btn:hover, .playlist-add-btn:hover, .playlist-remove-btn:hover {
+            transform: scale(1.2);
+        }
+        .favorite-btn.favorited {
+            color: #ffc107;
+        }
+        .playlist-add-btn { color: #1DB954; }
+        .playlist-add-btn.added { color: #28a745; font-weight: bold; }
+        .playlist-remove-btn { color: #F44336; }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: linear-gradient(90deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0));
+        }
+
+        .result-item .title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #ffffff;
+        }
+
+        .result-item .artist {
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+        #loadMoreBtn, #start-playlist-btn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background-color: #ffc107;
+            color: #212529;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        #loadMoreBtn:hover:not(:disabled), #start-playlist-btn:hover:not(:disabled) {
+            background-color: #e0a800;
+            transform: scale(1.05);
+        }
+
+        #loadMoreBtn:disabled, #start-playlist-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        #visualizer { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
+        #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
+        #ytplayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        button { padding: 12px 25px; font-size: 18px; font-weight: bold; margin: 5px; cursor: pointer; border-radius: 25px; border: none; color: white; transition: all 0.2s ease-in-out; }
+        #startBtn { background-color: #1DB954; }
+        #startBtn:hover:not(:disabled) { background-color: #1ED760; transform: scale(1.05); }
+        #startBtn:disabled { background-color: #555; cursor: not-allowed; }
+        #stopBtn { background-color: #F44336; }
+        #stopBtn:hover { background-color: #d9534f; transform: scale(1.05); }
+        #backBtn { background-color: #adb5bd; color: #212529; }
+        #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
+        #resultArea { margin-top: 20px; }
+        
+        #lyrics-zoom-guide { color: #e0e0e0; font-size: 14px; margin: 15px 0; opacity: 0.8; }
+        #headphone-guide { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 15px; margin: 20px auto; background-color: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; max-width: 90%; }
+        #headphone-guide .guide-icon { font-size: 2em; }
+        #headphone-guide p { margin: 0; font-size: 14px; line-height: 1.5; color: #f0f0f0; text-align: left; }
+        #downloadBtn { background-color: #007bff; margin-left: 10px; }
+        #downloadBtn:hover { background-color: #0056b3; }
+        
+        @media (max-width: 600px) {
+            #search-view { margin-top: 20px; padding: 20px; }
+            .title-wrapper h2 { font-size: 2.1em; margin: 0 10px; }
+            .decoration-container { width: 50px; }
+            #search-input, #search-button, .view-toggle-buttons button { padding: 10px 15px; font-size: 12px; }
+            .result-item { padding: 10px 15px; }
+            .result-item .title { font-size: 1em; }
+            .result-item .artist { font-size: 0.8em; }
+            #lyrics-zoom-guide { font-size: 12px; }
+            #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
+            #headphone-guide p { text-align: center; font-size: 12px; }
+            .view-toggle-buttons { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="search-view">
+      <header>
+          <div class="title-wrapper">
+              <div class="decoration-container left"></div>
+              <h2>🎤 나의 노래방</h2>
+              <div class="decoration-container right"></div>
+          </div>
+          <div class="search-box">
+              <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
+              <button id="search-button">검색</button>
+          </div>
+      </header>
+      <div class="view-toggle-buttons">
+          <button id="show-search-btn" class="active">전체 검색</button>
+          <button id="show-favorites-btn">⭐ 즐겨찾기</button>
+          <button id="show-recents-btn">🕓 최근 부른 곡</button>
+          <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
+      </div>
+      <div id="playlist-controls" style="display: none; text-align: center;">
+          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
+      </div>
+      <div id="search-results-container">
+          <ul id="search-results">
+          </ul>
+      </div>
+      <div id="load-more-container" style="text-align: center; margin-top: 20px;">
+          <button id="loadMoreBtn" style="display: none;">더 보기</button>
+      </div>
+    </div>
+
+    <div id="karaoke-view" style="display: none;">
+      <canvas id="visualizer"></canvas>
+      <div id="karaoke-container">
+        <header>
+            <h2 id="karaoke-title"></h2>
+        </header>
+        <div id="playerContainer">
+          <div id="ytplayer"></div>
+        </div>
+        <div id="lyrics-zoom-guide">
+            💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
+        </div>
+        <div id="headphone-guide">
+            <span class="guide-icon">🎧</span>
+            <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
+        </div>
+        <div id="power-guide" style="cursor: pointer; margin: 15px auto; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
+            <span>ℹ️ 기능 및 유의사항 안내</span>
+        </div>
+        <footer>
+          <div>
+            <button id="startBtn" disabled>▶ 시작</button>
+            <button id="stopBtn" disabled>⏹ 중단</button>
+            <button id="backBtn">🔍 선곡</button>
+          </div>
+          <div id="resultArea" style="display:none;">
+            <h4>녹음 완료!</h4>
+            <audio id="recordedAudio" controls style="width: 100%;"></audio>
+            <button id="downloadBtn" style="display: none;">💾 다운로드</button>
+          </div>
+          <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
+        </footer>
+      </div>
+    </div>
+
+    <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
     <script src="https://www.youtube.com/iframe_api"></script>
-
     <script>
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
@@ -169,6 +522,10 @@
             try {
                 if (player) {
                     player.cueVideoById(songData.videoId);
+                } else {
+                    // player가 아직 준비되지 않았을 경우를 대비 (onYouTubeIframeAPIReady가 아직 호출 안됐을 수 있음)
+                    // 이 경우, onReady 이벤트에서 cueVideoById를 호출하도록 할 수 있지만,
+                    // 지금 구조에서는 onYouTubeIframeAPIReady가 실행된 후에 prepareKaraoke가 호출되므로 괜찮습니다.
                 }
 
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
@@ -255,7 +612,6 @@
                     mediaRecorder.stop();
                 }
                 
-                // --- 수정된 부분 ---
                 // '녹음 중...' 영역을 숨겨 UI를 초기화합니다.
                 document.getElementById('resultArea').style.display = 'none';
                 
@@ -329,8 +685,13 @@
                 const downloadBtn = document.getElementById('downloadBtn');
                 const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
+
+                // 녹음이 완료되었을 때 제목 변경 및 오디오 플레이어 표시
+                document.querySelector('#resultArea h4').textContent = '녹음 완료!';
                 audioPlayer.src = url;
+                audioPlayer.style.display = 'block'; // 오디오 컨트롤 표시
                 downloadBtn.style.display = 'inline-block';
+
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
@@ -392,7 +753,14 @@
             loadMoreBtn.style.display = 'none';
             playlistControls.style.display = view === 'playlist' ? 'block' : 'none';
 
-            if (isSearchView) { startNewSearch(); } 
+            if (isSearchView) {
+                // 검색 화면으로 돌아올 때, 입력값이 있으면 다시 검색
+                if (searchInput.value.trim()) {
+                    startNewSearch();
+                } else {
+                    searchResultsUl.innerHTML = ''; // 비어있으면 목록도 비움
+                }
+            } 
             else if (view === 'favorites') { renderFavorites(); } 
             else if (view === 'recents') { renderRecents(); }
             else if (view === 'playlist') { renderPlaylist(); }
@@ -454,9 +822,16 @@
             loadMoreBtn.disabled = true;
             loadMoreBtn.textContent = '불러오는 중...';
             try {
-                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(queryForThisRequest)}&page=${currentPage}`);
-                if (!response.ok) throw new Error(`서버 오류: ${response.statusText}`);
-                const data = await response.json();
+                // Netlify Function을 호출하는 대신, 여기서는 임시 데이터를 사용하거나
+                // 실제 서버리스 함수 주소를 넣어야 합니다.
+                // 지금은 검색 기능이 동작하지 않을 것이므로, 이 부분은 비워둡니다.
+                // const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(queryForThisRequest)}&page=${currentPage}`);
+                // if (!response.ok) throw new Error(`서버 오류: ${response.statusText}`);
+                // const data = await response.json();
+
+                // 임시로 빈 결과를 표시하도록 처리
+                const data = { results: [], totalPages: 0 };
+                
                 if (queryForThisRequest === currentQuery) {
                     renderSearchResults(data.results);
                     totalPages = data.totalPages;
@@ -470,7 +845,7 @@
             } catch (error) {
                 if (queryForThisRequest === currentQuery) {
                     console.error('Search failed:', error);
-                    searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색에 실패했습니다.</li>';
+                    searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색에 실패했습니다. (서버 기능 필요)</li>';
                 }
             }
         }
@@ -478,7 +853,7 @@
         function renderSearchResults(results) {
             if (currentPage === 1) searchResultsUl.innerHTML = '';
             if (results.length === 0 && currentPage === 1) {
-                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색 결과가 없습니다.</li>';
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색 결과가 없습니다. (서버 기능 필요)</li>';
                 return;
             }
             renderSongList(results);
@@ -487,7 +862,12 @@
         function renderSongList(songs) {
             const favorites = getFavorites();
             const playlist = getPlaylist();
-            searchResultsUl.innerHTML = '';
+            // 현재 뷰가 검색 결과일 때만 초기화, 아니면 덮어쓰기
+            if(currentView === 'search' && currentPage === 1) {
+                searchResultsUl.innerHTML = '';
+            } else if (currentView !== 'search') {
+                searchResultsUl.innerHTML = '';
+            }
             
             songs.forEach((song, index) => {
                 const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
@@ -632,5 +1012,5 @@
         function clearVisualizer() { if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height); }
 
     </script>
-    </body>
+</body>
 </html>
