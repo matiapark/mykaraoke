@@ -446,7 +446,7 @@
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
                 height: '360', width: '640',
-                playerVars: { controls: 0, modestbranding: 1, fs: 0 },
+                playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3 },
                 events: { 
                     'onReady': () => console.log("✅ YouTube 준비됨"),
                     'onStateChange': onPlayerStateChange 
@@ -468,18 +468,13 @@
                     }
                 } else {
                     if (!isSinging) return;
-                    isSinging = false;
                     isStoppingManually = false; 
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
-                    stopBtn.disabled = true;
-                    startBtn.disabled = false;
+                    // 노래가 끝나면 리소스 정리
+                    cleanupAudioResources();
                     disableNoSleep();
-                    if (animationFrameId) {
-                        cancelAnimationFrame(animationFrameId);
-                        animationFrameId = null;
-                    }
                 }
             }
         }
@@ -496,9 +491,9 @@
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             headphoneGuide.style.display = 'flex';
-            resetState();
-
+            
             await cleanupAudioResources();
+            resetState();
             
             isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
@@ -509,7 +504,6 @@
                 player.cueVideoById(songData.videoId);
             }
 
-            // '시작' 버튼을 항상 활성화하여 사용자가 누를 수 있도록 함
             startBtn.disabled = false;
             stopBtn.disabled = true;
             isPreparing = false;
@@ -517,7 +511,7 @@
 
         /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
         async function startSinging() {
-            if (isPreparing || !player) return;
+            if (isPreparing || isSinging || !player) return;
 
             if (isPlaylistMode) {
                  if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
@@ -527,16 +521,13 @@
                  return;
             }
 
-            if (isSinging) return;
-
             // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 ▼▼▼▼▼ ---
             try {
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                // --- 권한 획득 성공 시 로직 ---
-                micErrorMessage.style.display = 'none'; // 이전 오류 메시지 숨기기
                 isSinging = true;
+                micErrorMessage.style.display = 'none';
                 resetState();
                 headphoneGuide.style.display = 'none';
                 
@@ -565,9 +556,7 @@
                 stopBtn.disabled = false;
 
             } catch (err) {
-                // --- 권한 획득 실패 시 로직 ---
                 console.error("오디오 시작 실패:", err);
-                // 사용자가 권한을 거부했을 때 명확한 안내 메시지 표시
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
@@ -575,36 +564,25 @@
              // --- ▲▲▲▲▲ 마이크 권한 요청 및 오디오 리소스 생성 ▲▲▲▲▲ ---
         }
 
-        /** '중단' 버튼: 모드에 따라 다르게 작동합니다. */
-        function stopSinging() {
+        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
+        async function stopSinging() {
             if (isPlaylistMode) {
                 if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                     player.pauseVideo();
                 }
-            } else {
-                if (!isSinging) return;
-                isSinging = false;
-                isStoppingManually = true;
-                
-                if (player) {
-                    player.pauseVideo();
-                    player.seekTo(0);
-                }
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                }
-                
-                disableNoSleep();
-                if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                    animationFrameId = null;
-                }
-
-                resetState(); // '녹음 중...' 메시지를 숨기고 녹음 상태를 초기화합니다.
-
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
+                return;
             }
+
+            if (!isSinging) return;
+            isStoppingManually = true;
+
+            if (player) {
+                player.pauseVideo();
+                player.seekTo(0);
+            }
+            
+            await cleanupAudioResources();
+            disableNoSleep();
         }
 
         /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
@@ -612,7 +590,6 @@
             if (player) player.stopVideo();
             await cleanupAudioResources();
             
-            isSinging = false;
             isPlaylistMode = false;
             
             karaokeView.style.display = 'none';
@@ -623,15 +600,13 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            isSinging = false;
-            isStoppingManually = false;
+            if (isSinging === false && isStoppingManually === false) return;
+            
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                isStoppingManually = true;
-                mediaRecorder.onstop = null;
                 mediaRecorder.stop();
             }
             
@@ -646,6 +621,12 @@
             audioStream = null;
             mediaRecorder = null;
             audioContext = null;
+
+            isSinging = false;
+            
+            // UI 업데이트
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
         }
         
         // --- 헬퍼 함수 ---
@@ -656,10 +637,12 @@
             };
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
-                    recordedChunks = [];
+                    resetState(); // 수동 중단 시 UI 초기화
+                    isStoppingManually = false;
                     return; 
                 }
                 
+                // 녹음 정상 종료
                 document.getElementById('resultArea').style.display = 'block';
                 const resultTitle = document.querySelector('#resultArea h4');
                 resultTitle.textContent = '녹음 완료!';
@@ -676,6 +659,7 @@
                     a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
+                recordedChunks = [];
             };
         }
 
@@ -695,7 +679,9 @@
         
         function resetState() {
             recordedChunks = [];
-            document.getElementById('resultArea').style.display = 'none';
+            const resultArea = document.getElementById('resultArea');
+            resultArea.style.display = 'none';
+            resultArea.querySelector('h4').textContent = '녹음 완료!';
             const recordedAudio = document.getElementById('recordedAudio');
             if (recordedAudio) recordedAudio.src = "";
             document.getElementById('downloadBtn').style.display = 'none';
