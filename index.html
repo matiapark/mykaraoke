@@ -600,6 +600,8 @@
                     animationFrameId = null;
                 }
 
+                resetState(); // '녹음 중...' 메시지를 숨기고 녹음 상태를 초기화합니다.
+
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
             }
