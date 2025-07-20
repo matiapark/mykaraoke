@@ -539,6 +539,10 @@
                     if (!audioContext || audioContext.state === 'closed') {
                         audioContext = new AudioContext();
                     }
+                    // 기기가 슬립 모드에 들어갔다 복귀했을 때 정지된 오디오를 재개합니다.
+                    if (audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
 
                     audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                     pitch = await new Promise((resolve, reject) => {
