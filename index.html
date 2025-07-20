@@ -601,8 +601,9 @@
                 isStoppingManually = true;
                 
                 if (player) {
-                    player.pauseVideo();
+                    // 0초로 먼저 이동시킨 후, 일시정지합니다.
                     player.seekTo(0);
+                    player.pauseVideo();
                 }
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
