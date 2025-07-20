@@ -475,7 +475,7 @@
                     if (!isSinging) return;
 
                     isSinging = false;
-                    isStoppingManually = false; // 자연스러운 종료이므로 false로 설정
+                    isStoppingManually = false;
 
                     // 녹음 중이었다면, 녹음을 중지하여 결과가 표시되도록 함
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -491,9 +491,10 @@
                         animationFrameId = null;
                     }
 
-                    // 이 부분을 추가하여 영상이 끝나면 0초로 이동하도록 합니다.
+                    // 영상이 끝나면 0초로 이동 후 일시 정지하여 대기합니다.
                     if (player) {
                         player.seekTo(0);
+                        player.pauseVideo();
                     }
                 }
             }
@@ -654,11 +655,13 @@
                 mediaRecorder.stop();
             }
             
-            if (audioContext && audioContext.state !== 'closed') {
-                await audioContext.close();
-            }
+            // 잡음 제거를 위해 오디오 스트림(마이크)을 먼저 끄고,
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
+            }
+            // 그 다음에 오디오 처리 장치를 종료합니다.
+            if (audioContext && audioContext.state !== 'closed') {
+                await audioContext.close();
             }
             
             pitch = null;
