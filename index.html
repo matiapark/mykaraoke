@@ -2,286 +2,834 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>노래방 시스템 - 슬립 모드 개선판</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나의 노래방</title>
+    <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        /* 전체 페이지 스타일 */
         body {
-            font-family: 'Malgun Gothic', Arial, sans-serif;
-            background-color: #000;
-            overflow: hidden;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            text-align: center;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            overflow-y: auto;
         }
-        
-        #video-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 100;
-            background-color: #000;
+        h2 { margin-top: 0; }
+
+        /* --- 1. 검색 화면 스타일 --- */
+        #search-view {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 35px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
-        #video-player {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            outline: none;
-        }
-        
-        #sleep-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            z-index: 200;
+
+        .title-wrapper {
             display: flex;
             justify-content: center;
             align-items: center;
-            flex-direction: column;
-            color: #fff;
-            font-size: 2rem;
-            text-align: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease, visibility 0.5s;
+            margin-bottom: 30px;
         }
         
-        #sleep-overlay.active {
-            opacity: 1;
-            visibility: visible;
+        .title-wrapper h2 {
+            font-size: 2.8em;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 20px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5);
         }
         
-        #wake-up-button {
-            margin-top: 30px;
-            padding: 15px 40px;
-            background-color: #ff3366;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        .decoration-container {
+            width: 100px;
+            height: 60px;
+            position: relative;
         }
-        
-        .system-message {
+
+        .star, .balloon {
+            position: absolute;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .star {
+            width: 10px;
+            height: 10px;
+            background-color: yellow;
+            clip-path: polygon(50% 0%, 61.8% 38.2%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 75%, 19.1% 100%, 30.9% 61.8%, 0% 38.2%, 38.2% 38.2%);
+        }
+
+        .balloon {
+            width: 12px;
+            height: 16px;
+            background-color: red;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            transform: rotate(-15deg);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); opacity: 0.9; }
+            50% { transform: translateY(-10px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0px); opacity: 0.9; }
+        }
+
+        .search-box {
+            display: flex;
             margin-bottom: 20px;
-            color: #ccc;
-            font-size: 1.2rem;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        #search-input {
+            flex-grow: 1;
+            padding: 10px 25px;
+            font-size: 16px;
+            border: none;
+            outline: none;
+            color: #333;
+            background: #f0f0f0;
+        }
+
+        #search-button {
+            padding: 10px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            background: #ffc107;
+            color: #212529;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .view-toggle-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
+        }
+        .view-toggle-buttons button {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #f0f0f0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .view-toggle-buttons button.active {
+            background-color: #ffc107;
+            color: #212529;
+            border-color: #ffc107;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+        }
+
+        #search-results-container {
+            min-height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #search-results {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: calc(100vh - 480px);
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: left;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .song-info {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .favorite-btn {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s ease, color 0.2s ease;
+            color: #fff;
+        }
+        .favorite-btn:hover {
+            transform: scale(1.2);
+        }
+        .favorite-btn.favorited {
+            color: #ffc107;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: linear-gradient(90deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0));
+        }
+
+        .result-item .title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #ffffff;
+        }
+
+        .result-item .artist {
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+        #loadMoreBtn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background-color: #ffc107;
+            color: #212529;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        #loadMoreBtn:hover:not(:disabled) {
+            background-color: #e0a800;
+            transform: scale(1.05);
+        }
+
+        #loadMoreBtn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        #visualizer { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
+        #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
+        #ytplayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        button { padding: 12px 25px; font-size: 18px; font-weight: bold; margin: 5px; cursor: pointer; border-radius: 25px; border: none; color: white; transition: all 0.2s ease-in-out; }
+        #startBtn { background-color: #1DB954; }
+        #startBtn:hover:not(:disabled) { background-color: #1ED760; transform: scale(1.05); }
+        #startBtn:disabled { background-color: #555; cursor: not-allowed; }
+        #stopBtn { background-color: #F44336; }
+        #stopBtn:hover { background-color: #d9534f; transform: scale(1.05); }
+        #backBtn { background-color: #adb5bd; color: #212529; }
+        #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
+        #resultArea { margin-top: 20px; }
+        
+        #lyrics-zoom-guide {
+            color: #e0e0e0;
+            font-size: 14px;
+            margin: 15px 0;
+            opacity: 0.8;
+        }
+
+        #headphone-guide {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            margin: 20px auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            max-width: 90%;
+        }
+        #headphone-guide .guide-icon {
+            font-size: 2em;
+        }
+        #headphone-guide p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #f0f0f0;
+            text-align: left;
+        }
+
+        #downloadBtn {
+            background-color: #007bff;
+            margin-left: 10px;
+        }
+        #downloadBtn:hover {
+            background-color: #0056b3;
+        }
+        
+        @media (max-width: 600px) {
+            #search-view {
+                margin-top: 20px;
+                padding: 20px;
+            }
+
+            .title-wrapper h2 {
+                font-size: 2.1em;
+                margin: 0 10px;
+            }
+            .decoration-container {
+                width: 50px;
+            }
+
+            #search-input, #search-button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            .result-item {
+                padding: 10px 15px;
+            }
+
+            .result-item .title {
+                font-size: 1em;
+            }
+
+            .result-item .artist {
+                font-size: 0.8em;
+            }
+
+            #lyrics-zoom-guide {
+                font-size: 12px;
+            }
+            
+            #headphone-guide {
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+            }
+            #headphone-guide p {
+                text-align: center;
+                font-size: 12px;
+            }
+            .view-toggle-buttons {
+                flex-wrap: wrap;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="video-container">
-        <video id="video-player" playsinline webkit-playsinline></video>
+
+    <div id="search-view">
+      <header>
+          <div class="title-wrapper">
+              <div class="decoration-container left"></div>
+              <h2>🎤 나의 노래방</h2>
+              <div class="decoration-container right"></div>
+          </div>
+          <div class="search-box">
+              <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
+              <button id="search-button">검색</button>
+          </div>
+      </header>
+      <div class="view-toggle-buttons">
+          <button id="show-search-btn" class="active">전체 검색</button>
+          <button id="show-favorites-btn">⭐ 즐겨찾기</button>
+          <button id="show-recents-btn">🕓 최근 부른 곡</button>
+      </div>
+      <div id="search-results-container">
+          <ul id="search-results">
+          </ul>
+      </div>
+      <div id="load-more-container" style="text-align: center; margin-top: 20px;">
+          <button id="loadMoreBtn" style="display: none;">더 보기</button>
+      </div>
     </div>
+
+    <div id="karaoke-view" style="display: none;">
+      <canvas id="visualizer"></canvas>
+      <div id="karaoke-container">
+        <header>
+            <h2 id="karaoke-title"></h2>
+        </header>
+
+        <div id="playerContainer">
+          <div id="ytplayer"></div>
+        </div>
+        
+        <div id="lyrics-zoom-guide">
+            💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
+        </div>
+
+        <div id="headphone-guide">
+            <span class="guide-icon">🎧</span>
+            <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
+        </div>
+
+        <footer>
+          <div>
+            <button id="startBtn" disabled>▶ 시작</button>
+            <button id="stopBtn" disabled>⏹ 중단</button>
+            <button id="backBtn">🔍 선곡하기</button>
+          </div>
+          <div id="resultArea" style="display:none;">
+            <h4>녹음 완료!</h4>
+            <audio id="recordedAudio" controls style="width: 100%;"></audio>
+            <button id="downloadBtn" style="display: none;">💾 다운로드</button>
+          </div>
+          <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
+        </footer>
+      </div>
+    </div>
+
+    <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;">
+        <source src="data:video/webm;base64,GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKCQAR3ZWJtQoeBAkKFgQIYU4BnQI0VSalmQCgq17FAAw9vpclwhkkVaOFf4HVlgA" type="video/webm">
+    </video>
     
-    <div id="sleep-overlay">
-        <p>시스템이 대기 모드입니다</p>
-        <div class="system-message">화면을 터치하여 계속...</div>
-        <button id="wake-up-button">시스템 시작</button>
-    </div>
+    <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        // 시스템 상태 변수
-        const systemState = {
-            isSleeping: false,
-            isVideoEnded: false,
-            sleepTimer: null,
-            wakeLock: null,
-            lastActivityTime: Date.now()
+        // --- 전역 변수 ---
+        let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
+        let recordedChunks = [];
+        let isStoppingManually = false;
+        
+        let isIphone = false;
+        let isFirstPlayOnIphone = true;
+        
+        let currentQuery = '';
+        let currentPage = 1;
+        let totalPages = 1;
+        let debounceTimer;
+        let currentView = 'search';
+
+        // --- 뷰(View) 관리 ---
+        const searchView = document.getElementById('search-view');
+        const karaokeView = document.getElementById('karaoke-view');
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const searchResultsUl = document.getElementById('search-results');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        
+        let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn;
+
+        // --- 초기화 로직 ---
+        window.onload = () => {
+            canvas = document.getElementById('visualizer');
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                canvasCtx = canvas.getContext('2d');
+            }
+            isIphone = /iPhone/.test(navigator.userAgent);
+
+            noSleepVideo = document.getElementById('noSleepVideo');
+            showSearchBtn = document.getElementById('show-search-btn');
+            showFavoritesBtn = document.getElementById('show-favorites-btn');
+            showRecentsBtn = document.getElementById('show-recents-btn');
+            
+            showSearchBtn.addEventListener('click', () => switchView('search'));
+            showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
+            showRecentsBtn.addEventListener('click', () => switchView('recents'));
+
+            // 슬립모드 복귀 시 자동 재개 기능 추가
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && 
+                    karaokeView.style.display !== 'none' && 
+                    player && typeof player.getPlayerState === 'function') {
+                    if (player.getPlayerState() === YT.PlayerState.PAUSED) {
+                        player.playVideo();
+                        if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                            startSinging();
+                        }
+                    }
+                }
+            });
+
+            createDecorations('.left', 5, 3);
+            createDecorations('.right', 5, 3);
         };
 
-        // DOM 요소
-        const elements = {
-            videoPlayer: document.getElementById('video-player'),
-            sleepOverlay: document.getElementById('sleep-overlay'),
-            wakeUpButton: document.getElementById('wake-up-button')
+        // --- 검색 관련 이벤트 리스너 ---
+        searchInput.addEventListener('input', () => {
+            if (currentView !== 'search') {
+                switchView('search');
+            }
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                startNewSearch();
+            }, 500); 
+        });
+
+        searchButton.addEventListener('click', startNewSearch);
+
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                clearTimeout(debounceTimer);
+                startNewSearch();
+            }
+        });
+        
+        loadMoreBtn.addEventListener('click', () => {
+            currentPage++;
+            fetchAndRenderResults();
+        });
+
+        // --- LocalStorage 헬퍼 함수 ---
+        const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
+        const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
+
+        const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
+        const addRecentSong = (songData) => {
+            let recents = getRecents();
+            recents = recents.filter(song => song.videoId !== songData.videoId);
+            recents.unshift(songData);
+            if (recents.length > 10) recents = recents.slice(0, 10);
+            localStorage.setItem('karaokeRecents', JSON.stringify(recents));
         };
-
-        // 시스템 초기화
-        function initSystem() {
-            setupEventListeners();
-            loadSampleVideo();
-            startActivityMonitor();
+        
+        // --- UI 렌더링 및 상태 관리 ---
+        function createDecorations(containerSelector, starCount, balloonCount) {
+            const container = document.querySelector(containerSelector);
+            if (!container) return;
+            const colors = ['#ffc107', '#007bff', '#28a745', '#dc3545', '#17a2b8', '#6610f2'];
+            const createIcon = (type) => {
+                const icon = document.createElement('div');
+                icon.className = type;
+                icon.style.left = `${Math.random() * 90}%`;
+                icon.style.top = `${Math.random() * 80}%`;
+                icon.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                icon.style.animationDelay = `${Math.random() * 4}s`;
+                icon.style.animationDuration = `${2 + Math.random() * 2}s`;
+                container.appendChild(icon);
+            };
+            for (let i = 0; i < starCount; i++) createIcon('star');
+            for (let i = 0; i < balloonCount; i++) createIcon('balloon');
+        }
+        
+        function switchView(view) {
+            currentView = view;
+            [showSearchBtn, showFavoritesBtn, showRecentsBtn].forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`show-${view}-btn`).classList.add('active');
             
-            // Wake Lock API 지원 시 사용 (화면 꺼짐 방지)
-            requestWakeLock();
+            const isSearchView = view === 'search';
+            document.querySelector('.search-box').style.display = isSearchView ? 'flex' : 'none';
+            loadMoreBtn.style.display = 'none';
+
+            if (isSearchView) {
+                startNewSearch();
+            } else if (view === 'favorites') {
+                renderFavorites();
+            } else if (view === 'recents') {
+                renderRecents();
+            }
+        }
+        
+        function renderFavorites() {
+            const favorites = getFavorites();
+            searchResultsUl.innerHTML = '';
+            if (favorites.length === 0) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">즐겨찾기한 노래가 없습니다.</li>';
+                return;
+            }
+            renderSongList(favorites);
         }
 
-        // 이벤트 리스너 설정
-        function setupEventListeners() {
-            // 비디오 이벤트
-            elements.videoPlayer.addEventListener('ended', handleVideoEnded);
-            elements.videoPlayer.addEventListener('pause', handleVideoPause);
-            elements.videoPlayer.addEventListener('play', handleVideoPlay);
-            elements.videoPlayer.addEventListener('timeupdate', handleVideoTimeUpdate);
-            
-            // 슬립 모드 해제 이벤트
-            elements.wakeUpButton.addEventListener('click', wakeUpSystem);
-            document.addEventListener('click', handleUserActivity);
-            document.addEventListener('touchstart', handleUserActivity);
-            document.addEventListener('keydown', handleUserActivity);
-            
-            // 페이지 가시성 변경 이벤트
-            document.addEventListener('visibilitychange', handleVisibilityChange);
+        function renderRecents() {
+            const recents = getRecents();
+            searchResultsUl.innerHTML = '';
+            if (recents.length === 0) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">최근에 부른 노래가 없습니다.</li>';
+                return;
+            }
+            renderSongList(recents);
         }
 
-        // 샘플 비디오 로드 (실제 사용 시 경로 수정 필요)
-        function loadSampleVideo() {
-            elements.videoPlayer.src = 'sample_video.mp4';
-            elements.videoPlayer.load();
-            
-            elements.videoPlayer.play().catch(error => {
-                console.error('자동 재생 실패:', error);
-                // 사용자 상호작용 필요 시 처리
+        function startNewSearch() {
+            const newQuery = searchInput.value.trim();
+            currentQuery = newQuery;
+            currentPage = 1;
+            if (currentQuery) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색 중...</li>';
+                fetchAndRenderResults();
+            } else {
+                searchResultsUl.innerHTML = '';
+            }
+        }
+        
+        async function fetchAndRenderResults() {
+            const queryForThisRequest = currentQuery;
+            if (!queryForThisRequest) return;
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = '불러오는 중...';
+            try {
+                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(queryForThisRequest)}&page=${currentPage}`);
+                if (!response.ok) throw new Error(`서버 오류: ${response.statusText}`);
+                const data = await response.json();
+                if (queryForThisRequest === currentQuery) {
+                    renderSearchResults(data.results);
+                    totalPages = data.totalPages;
+                    const showLoadMore = currentPage < totalPages && currentView === 'search';
+                    loadMoreBtn.style.display = showLoadMore ? 'block' : 'none';
+                    if(showLoadMore) {
+                       loadMoreBtn.disabled = false;
+                       loadMoreBtn.textContent = '더 보기';
+                    }
+                }
+            } catch (error) {
+                if (queryForThisRequest === currentQuery) {
+                    console.error('Search failed:', error);
+                    searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색에 실패했습니다.</li>';
+                }
+            }
+        }
+
+        function renderSearchResults(results) {
+            if (currentPage === 1) searchResultsUl.innerHTML = '';
+            if (results.length === 0 && currentPage === 1) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색 결과가 없습니다.</li>';
+                return;
+            }
+            renderSongList(results);
+        }
+
+        function renderSongList(songs) {
+            const favorites = getFavorites();
+            searchResultsUl.innerHTML = '';
+            songs.forEach(song => {
+                const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
+                const li = document.createElement('li');
+                li.className = 'result-item';
+                
+                const songInfoDiv = document.createElement('div');
+                songInfoDiv.className = 'song-info';
+                songInfoDiv.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
+                
+                const favoriteBtn = document.createElement('span');
+                favoriteBtn.className = `favorite-btn ${isFavorited ? 'favorited' : ''}`;
+                favoriteBtn.innerHTML = isFavorited ? '★' : '☆';
+                
+                li.appendChild(songInfoDiv);
+                li.appendChild(favoriteBtn);
+                
+                li.addEventListener('click', (e) => {
+                    if (e.target !== favoriteBtn) {
+                        startKaraokeSession(song);
+                    }
+                });
+
+                favoriteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleFavorite(song, favoriteBtn);
+                });
+
+                searchResultsUl.appendChild(li);
             });
         }
 
-        // 비디오 이벤트 핸들러
-        function handleVideoEnded() {
-            console.log('비디오 재생 완료');
-            systemState.isVideoEnded = true;
-            startSleepTimer(5000); // 5초 후 슬립 모드 진입
-        }
-
-        function handleVideoPause() {
-            if (!systemState.isVideoEnded && !systemState.isSleeping) {
-                console.log('비디오 일시정지 - 슬립 타이머 시작');
-                startSleepTimer(30000); // 30초 후 슬립 모드
-            }
-        }
-
-        function handleVideoPlay() {
-            console.log('비디오 재생 - 슬립 타이머 취소');
-            cancelSleepTimer();
-            systemState.isVideoEnded = false;
-            systemState.lastActivityTime = Date.now();
-        }
-
-        function handleVideoTimeUpdate() {
-            systemState.lastActivityTime = Date.now();
-        }
-
-        // 사용자 활동 감지
-        function handleUserActivity() {
-            if (systemState.isSleeping) return;
-            
-            systemState.lastActivityTime = Date.now();
-            cancelSleepTimer();
-            
-            if (elements.videoPlayer.paused && !systemState.isVideoEnded) {
-                elements.videoPlayer.play().catch(console.error);
-            }
-        }
-
-        // 슬립 모드 관리
-        function startSleepTimer(delay) {
-            cancelSleepTimer();
-            systemState.sleepTimer = setTimeout(() => {
-                enterSleepMode();
-            }, delay);
-        }
-
-        function cancelSleepTimer() {
-            if (systemState.sleepTimer) {
-                clearTimeout(systemState.sleepTimer);
-                systemState.sleepTimer = null;
-            }
-        }
-
-        function enterSleepMode() {
-            if (systemState.isSleeping) return;
-            
-            console.log('슬립 모드 진입');
-            systemState.isSleeping = true;
-            
-            // 비디오 정지 및 리소스 해제
-            elements.videoPlayer.pause();
-            elements.videoPlayer.removeAttribute('src');
-            elements.videoPlayer.load();
-            
-            // 슬립 오버레이 표시
-            elements.sleepOverlay.classList.add('active');
-            
-            // 성능 최적화
-            document.body.style.backgroundColor = '#000';
-        }
-
-        function wakeUpSystem() {
-            if (!systemState.isSleeping) return;
-            
-            console.log('슬립 모드 해제');
-            systemState.isSleeping = false;
-            systemState.isVideoEnded = false;
-            
-            // 슬립 오버레이 숨김
-            elements.sleepOverlay.classList.remove('active');
-            
-            // 시스템 재초기화
-            loadSampleVideo();
-            
-            // 하드웨어 가속 강제 갱신
-            void elements.videoPlayer.offsetHeight;
-        }
-
-        // 활동 모니터링
-        function startActivityMonitor() {
-            setInterval(() => {
-                const inactiveTime = Date.now() - systemState.lastActivityTime;
-                if (!systemState.isSleeping && inactiveTime > 60000) { // 1분 이상 활동 없음
-                    console.log('장시간 사용자 활동 없음 - 슬립 모드 진입');
-                    enterSleepMode();
-                }
-            }, 30000); // 30초마다 체크
-        }
-
-        // 페이지 가시성 변경 처리
-        function handleVisibilityChange() {
-            if (document.hidden) {
-                if (!systemState.isSleeping) {
-                    elements.videoPlayer.pause();
-                    startSleepTimer(10000); // 10초 후 슬립 모드
-                }
+        function toggleFavorite(songData, btnElement) {
+            let favorites = getFavorites();
+            const existingIndex = favorites.findIndex(fav => fav.videoId === songData.videoId);
+            if (existingIndex > -1) {
+                favorites.splice(existingIndex, 1);
+                btnElement.innerHTML = '☆';
+                btnElement.classList.remove('favorited');
             } else {
-                if (!systemState.isSleeping && systemState.isVideoEnded) {
-                    startSleepTimer(5000); // 다시 5초 후 슬립 모드
+                favorites.push({ videoId: songData.videoId, title: songData.title, artist: songData.artist });
+                btnElement.innerHTML = '★';
+                btnElement.classList.add('favorited');
+            }
+            saveFavorites(favorites);
+            if (currentView === 'favorites') renderFavorites();
+        }
+        
+        // --- 노래방 기능 관련 코드 ---
+        const enableNoSleep = () => noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
+        const disableNoSleep = () => noSleepVideo.pause();
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('ytplayer', {
+                height: '360', width: '640',
+                playerVars: { controls: 0, modestbranding: 1, fs: 0 },
+                events: { 'onReady': () => console.log("✅ YouTube 준비됨"), 'onStateChange': onPlayerStateChange }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            if (isIphone && isFirstPlayOnIphone && event.data === YT.PlayerState.PLAYING) {
+                isFirstPlayOnIphone = false;
+                document.getElementById('mic-error-message').style.display = 'none';
+            }
+            if (event.data === YT.PlayerState.ENDED) {
+                if (isStoppingManually) { isStoppingManually = false; return; }
+                if (player && player.seekTo) {
+                    player.seekTo(0, true);
+                    setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
                 }
+                disableNoSleep();
+                if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                setTimeout(() => clearVisualizer(), 200);
+                document.getElementById('resultArea').style.display = 'block';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
             }
         }
 
-        // Wake Lock API (화면 꺼짐 방지)
-        async function requestWakeLock() {
+        function startKaraokeSession(songData) {
+            addRecentSong(songData);
+            const startSound = document.getElementById('startSfx');
+            if (startSound) {
+                startSound.currentTime = 0;
+                startSound.play().catch(e => console.error("효과음 재생 실패:", e));
+            }
+            searchView.style.display = 'none';
+            karaokeView.style.display = 'block';
+            document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
+            player.cueVideoById(songData.videoId);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            if (isIphone) isFirstPlayOnIphone = true;
+            resetState();
+            document.getElementById('headphone-guide').style.display = 'flex';
+        }
+
+        document.getElementById('backBtn').onclick = () => {
+            stopAndReset();
+            karaokeView.style.display = 'none';
+            searchView.style.display = 'block';
+            searchInput.value = '';
+            switchView('search');
+        };
+
+        document.getElementById('startBtn').onclick = startSinging;
+        document.getElementById('stopBtn').onclick = stopAndReset;
+
+        async function startSinging() {
+            document.getElementById('headphone-guide').style.display = 'none';
+            isStoppingManually = false;
+            const errorMessageDiv = document.getElementById('mic-error-message');
+            errorMessageDiv.style.display = 'none';
             try {
-                if ('wakeLock' in navigator) {
-                    systemState.wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Wake Lock 활성화');
-                    
-                    systemState.wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock 해제됨');
-                    });
+                const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+                audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+                enableNoSleep();
+                resetState();
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                if (audioContext && audioContext.state !== 'closed') await audioContext.close();
+                audioContext = new AudioContext();
+                pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, modelLoaded);
+                mediaRecorder = new MediaRecorder(audioStream);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const resultArea = document.getElementById('resultArea');
+                    resultArea.querySelector('h4').textContent = '녹음 완료!';
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    audioPlayer.style.display = 'block';
+                    if (isStoppingManually) return;
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    audioPlayer.src = url;
+                    downloadBtn.style.display = 'inline-block';
+                    downloadBtn.onclick = () => {
+                        const a = document.createElement('a');
+                        a.style.display = 'none'; a.href = url;
+                        a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    };
+                };
+                mediaRecorder.start();
+                const resultArea = document.getElementById('resultArea');
+                resultArea.querySelector('h4').textContent = '녹음 중...';
+                document.getElementById('recordedAudio').style.display = 'none';
+                resultArea.style.display = 'block';
+                if (isIphone && isFirstPlayOnIphone) {
+                    errorMessageDiv.innerHTML = "💡 아이폰은 첫 재생 시, 화면 중앙의 재생(▶) 버튼을 직접 눌러주세요.";
+                    errorMessageDiv.style.display = 'block';
+                } else {
+                    player.playVideo();
                 }
             } catch (err) {
-                console.error('Wake Lock 실패:', err);
+                console.error("마이크 권한 오류:", err.name, err.message);
+                errorMessageDiv.innerHTML = "마이크 사용 권한을 허용해주세요. 브라우저 주소창의 자물쇠 아이콘을 확인하세요.";
+                errorMessageDiv.style.display = 'block';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
             }
         }
 
-        // DOM 로드 완료 후 시스템 초기화
-        window.addEventListener('DOMContentLoaded', initSystem);
-        
-        // 오류 처리
-        window.addEventListener('error', (event) => {
-            console.error('시스템 오류:', event.error);
-        });
+        function modelLoaded() { getPitch(); }
+        function getPitch() {
+            pitch.getPitch((err, frequency) => {
+                drawVisualizer(frequency || 0);
+                if (mediaRecorder && mediaRecorder.state === "recording") {
+                    animationFrameId = requestAnimationFrame(getPitch);
+                }
+            });
+        }
+
+        function stopAndReset() {
+            disableNoSleep();
+            isStoppingManually = true;
+            if (player && typeof player.getPlayerState === 'function') {
+                player.seekTo(0, true);
+                setTimeout(() => { if (player.stopVideo) player.stopVideo(); }, 50);
+            }
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+                if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+                resetState();
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('headphone-guide').style.display = 'flex';
+            }, 150);
+        }
+
+        function drawVisualizer(frequency) {
+            if (!canvasCtx) return;
+            canvasCtx.fillStyle = 'rgba(18, 18, 18, 0.2)';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            if (frequency === 0) return;
+            const barCount = 60;
+            const barWidth = canvas.width / barCount / 2;
+            const minPitch = 80, maxPitch = 500;
+            let heightRatio = (frequency - minPitch) / (maxPitch - minPitch);
+            heightRatio = Math.max(0, Math.min(1, heightRatio));
+            const hue = (1 - heightRatio) * 240;
+            const centerBarHeight = heightRatio * (canvas.height * 0.8);
+            for (let i = 0; i < barCount; i++) {
+                const distanceFromCenter = Math.abs(i - Math.floor(barCount / 2));
+                const height = Math.max(0, centerBarHeight * (1 - distanceFromCenter / (barCount / 1.8)));
+                if (height < 2) continue;
+                const x = (canvas.width / 2) + (i - barCount / 2) * (barWidth * 1.8);
+                const y = canvas.height - height;
+                canvasCtx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+                canvasCtx.fillRect(x, y, barWidth, height);
+            }
+        }
+
+        function clearVisualizer() { if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height); }
+        function resetState() {
+            recordedChunks = [];
+            document.getElementById('resultArea').style.display = 'none';
+            const recordedAudio = document.getElementById('recordedAudio');
+            if (recordedAudio) recordedAudio.src = "";
+            document.getElementById('downloadBtn').style.display = 'none';
+            clearVisualizer();
+        }
     </script>
 </body>
 </html>
