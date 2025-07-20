@@ -477,7 +477,6 @@
                     isSinging = false;
                     isStoppingManually = false;
 
-                    // 녹음 중이었다면, 녹음을 중지하여 결과가 표시되도록 함
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
