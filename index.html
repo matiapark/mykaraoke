@@ -490,11 +490,13 @@
                         animationFrameId = null;
                     }
 
-                    // 영상이 끝나면 0초로 이동 후 일시 정지하여 대기합니다.
-                    if (player) {
-                        player.seekTo(0);
-                        player.pauseVideo();
-                    }
+                    // 플레이어가 'ENDED' 상태 처리를 완료할 수 있도록 아주 잠깐 기다린 후,
+                    // stopVideo()를 호출하여 확실하게 초기화합니다.
+                    setTimeout(() => {
+                        if (player) {
+                            player.stopVideo();
+                        }
+                    }, 100); // 0.1초 지연
                 }
             }
         }
