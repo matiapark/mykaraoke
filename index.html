@@ -608,6 +608,9 @@
                     mediaRecorder.stop();
                 }
                 
+                // '녹음 중...' 메시지를 숨기는 코드를 여기에 추가합니다.
+                document.getElementById('resultArea').style.display = 'none';
+                
                 disableNoSleep();
                 if (animationFrameId) {
                     cancelAnimationFrame(animationFrameId);
