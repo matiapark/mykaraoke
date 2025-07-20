@@ -500,6 +500,9 @@
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
+
+            // 효과음 재생 코드를 여기에 추가합니다.
+            document.getElementById('startSfx').play();
             
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
@@ -540,7 +543,9 @@
                     setupMediaRecorder();
                 }
 
+                // [상태] 시작 대기: 시작 활성화, 중단 비활성화
                 startBtn.disabled = false;
+                stopBtn.disabled = true;
                 startBtn.textContent = '▶ 시작';
                 
             } catch (err) {
@@ -583,6 +588,7 @@
             getPitch();
             enableNoSleep();
             
+            // [상태] 노래 시작: 시작 비활성화, 중단 활성화
             startBtn.disabled = true;
             stopBtn.disabled = false;
         }
@@ -608,7 +614,6 @@
                     mediaRecorder.stop();
                 }
                 
-                // '녹음 중...' 메시지를 숨기는 코드를 여기에 추가합니다.
                 document.getElementById('resultArea').style.display = 'none';
                 
                 disableNoSleep();
@@ -617,6 +622,7 @@
                     animationFrameId = null;
                 }
 
+                // [상태] 노래 중단: 시작 활성화, 중단 비활성화
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
             }
@@ -624,7 +630,11 @@
 
         /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
-            if (player) player.stopVideo();
+            if (player) {
+                // 플레이어를 멈추기 전에 일시정지하여 잡음 발생 가능성을 줄입니다.
+                player.pauseVideo();
+                player.stopVideo();
+            }
             await cleanupAudioResources();
             
             isSinging = false;
