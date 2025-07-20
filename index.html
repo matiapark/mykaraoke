@@ -490,9 +490,10 @@
                         animationFrameId = null;
                     }
 
-                    // '중단' 버튼처럼 stopVideo()를 호출하여 확실하게 0초로 리셋합니다.
+                    // 영상이 끝나면 0초로 이동 후 일시 정지하여 대기합니다.
                     if (player) {
-                        player.stopVideo();
+                        player.seekTo(0);
+                        player.pauseVideo();
                     }
                 }
             }
@@ -532,8 +533,12 @@
                 
                 // 플레이리스트 모드가 아닐 때만 마이크/녹음 관련 기능 준비
                 if (!isPlaylistMode) {
+                    // AudioContext가 없거나 닫힌 상태일 때만 새로 생성합니다.
+                    if (!audioContext || audioContext.state === 'closed') {
+                        audioContext = new AudioContext();
+                    }
+
                     audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    audioContext = new AudioContext();
                     pitch = await new Promise((resolve, reject) => {
                         ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, (err, model) => {
                             if (err) return reject(err);
@@ -653,23 +658,15 @@
                 mediaRecorder.stop();
             }
             
-            // 잡음 제거를 위해 오디오 스트림(마이크)을 먼저 끄고,
+            // 마이크(오디오 스트림)만 끄고, AudioContext는 재사용을 위해 닫지 않습니다.
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
-            }
-
-            // 스트림이 완전히 닫힐 시간을 벌어주기 위해 아주 짧은 지연을 추가합니다.
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            // 그 다음에 오디오 처리 장치를 종료합니다.
-            if (audioContext && audioContext.state !== 'closed') {
-                await audioContext.close();
             }
             
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
-            audioContext = null;
+            // audioContext 변수는 재사용하므로 null로 만들지 않습니다.
         }
         
         // --- 헬퍼 함수 ---
