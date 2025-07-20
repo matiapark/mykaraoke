@@ -490,6 +490,11 @@
                         cancelAnimationFrame(animationFrameId);
                         animationFrameId = null;
                     }
+
+                    // 이 부분을 추가하여 영상이 끝나면 0초로 이동하도록 합니다.
+                    if (player) {
+                        player.seekTo(0);
+                    }
                 }
             }
         }
@@ -674,13 +679,19 @@
                     return; 
                 }
                 
-                document.getElementById('resultArea').style.display = 'block';
+                const resultArea = document.getElementById('resultArea');
                 const audioPlayer = document.getElementById('recordedAudio');
                 const downloadBtn = document.getElementById('downloadBtn');
+
+                resultArea.style.display = 'block';
+                resultArea.querySelector('h4').textContent = '녹음 완료!';
+                audioPlayer.style.display = 'block';
+                downloadBtn.style.display = 'inline-block';
+                
                 const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
                 audioPlayer.src = url;
-                downloadBtn.style.display = 'inline-block';
+                
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
