@@ -355,6 +355,8 @@
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
+    <div id="version-display" style="position: fixed; bottom: 5px; right: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.4);"></div>
+
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         // --- 전역 변수 ---
@@ -390,6 +392,23 @@
             backBtn = document.getElementById('backBtn');
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
+
+            // --- 버전 표시 기능 시작 ---
+            fetch(window.location.href, { method: 'HEAD' })
+                .then(response => {
+                    const lastModified = response.headers.get('Last-Modified');
+                    if (lastModified) {
+                        const d = new Date(lastModified);
+                        const year = String(d.getFullYear()).substring(2);
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const date = String(d.getDate()).padStart(2, '0');
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        document.getElementById('version-display').textContent = `ver. ${year}${month}${date}${hours}${minutes}`;
+                    }
+                })
+                .catch(err => console.error('버전 정보를 가져오는 데 실패했습니다:', err));
+            // --- 버전 표시 기능 끝 ---
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -601,8 +620,9 @@
                 isStoppingManually = true;
                 
                 if (player) {
-                    player.pauseVideo();
+                    // 0초로 먼저 이동시킨 후, 일시정지합니다.
                     player.seekTo(0);
+                    player.pauseVideo();
                 }
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
