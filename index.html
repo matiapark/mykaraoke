@@ -501,8 +501,6 @@
             if (isPreparing) return;
             isPreparing = true;
             
-            searchView.style.display = 'none';
-            karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             headphoneGuide.style.display = 'flex';
@@ -946,8 +944,14 @@
                 
                 li.addEventListener('click', (e) => {
                     if (!e.target.closest('.list-buttons')) {
-                        // 클릭 즉시 효과음이 재생되도록 수정합니다.
+                        // 1. 즉시 효과음을 재생합니다.
                         document.getElementById('startSfx').play();
+
+                        // 2. 즉시 화면을 노래방 뷰로 전환합니다.
+                        searchView.style.display = 'none';
+                        karaokeView.style.display = 'block';
+
+                        // 3. 화면 전환 후, 무거운 오디오 준비 작업을 시작합니다.
                         prepareKaraoke(song);
                     }
                 });
