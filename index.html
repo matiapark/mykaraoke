@@ -500,9 +500,6 @@
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
-
-            // 효과음 재생 코드를 여기에 추가합니다.
-            document.getElementById('startSfx').play();
             
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
@@ -648,25 +645,32 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            isSinging = false;
-            isStoppingManually = false;
+            // 시각화 애니메이션을 먼저 중지합니다.
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+
+            // 오디오 소스인 마이크(오디오 스트림)를 먼저 정지시킵니다.
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+
+            // 그 다음, 오디오를 처리하는 AudioContext를 닫습니다.
+            if (audioContext && audioContext.state !== 'closed') {
+                await audioContext.close();
+            }
+
+            // 녹음기(MediaRecorder)를 정지시킵니다.
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 isStoppingManually = true;
                 mediaRecorder.onstop = null;
                 mediaRecorder.stop();
             }
             
-            if (audioContext && audioContext.state !== 'closed') {
-                await audioContext.close();
-            }
-            if (audioStream) {
-                audioStream.getTracks().forEach(track => track.stop());
-            }
-            
+            // 마지막으로 모든 관련 상태 변수를 초기화합니다.
+            isSinging = false;
+            isStoppingManually = false;
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
@@ -942,6 +946,8 @@
                 
                 li.addEventListener('click', (e) => {
                     if (!e.target.closest('.list-buttons')) {
+                        // 클릭 즉시 효과음이 재생되도록 수정합니다.
+                        document.getElementById('startSfx').play();
                         prepareKaraoke(song);
                     }
                 });
