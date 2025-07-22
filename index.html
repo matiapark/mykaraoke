@@ -472,13 +472,7 @@
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
-                    
-                    // 영상이 끝나면 0초로 이동 후 일시정지합니다.
-                    if(player) {
-                        player.seekTo(0);
-                        player.pauseVideo();
-                    }
-                    
+                    // 노래가 끝나면 리소스 정리
                     cleanupAudioResources();
                     disableNoSleep();
                 }
@@ -965,3 +959,4 @@
     </script>
 </body>
 </html>
+}
