@@ -363,7 +363,6 @@
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
-        let currentSongData = null; // 현재 곡 정보를 저장할 변수
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -459,27 +458,15 @@
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
-                    // 1. 현재 곡 녹음 중지 (결과가 저장됨)
-                    isStoppingManually = false; 
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
-                    }
-                    cleanupAudioResources();
-                    disableNoSleep();
-
-                    // 2. 다음 곡으로 이동
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
                         const nextSong = currentPlaylist[currentPlaylistIndex];
-                        // 3. 다음 곡을 준비만 하고 '시작' 버튼을 누르기를 기다립니다.
-                        prepareKaraoke(nextSong, true); 
+                        prepareKaraoke(nextSong, true);
                     } else {
-                        // 마지막 곡 완료 시, 플레이리스트의 처음으로 돌아가 대기합니다.
-                        currentPlaylistIndex = 0;
-                        const firstSong = currentPlaylist[currentPlaylistIndex];
-                        prepareKaraoke(firstSong, true);
+                        alert('플레이리스트가 종료되었습니다.');
+                        returnToSearchView();
                     }
-                } else { // 단일 곡 모드
+                } else {
                     if (!isSinging) return;
                     isStoppingManually = false; 
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -502,8 +489,6 @@
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
-            
-            currentSongData = songData; // 현재 곡 정보 저장
             
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
@@ -540,7 +525,7 @@
                 isSinging = true;
                 micErrorMessage.style.display = 'none';
                 resetState();
-                headphoneGuide.style.display = 'none'; // 시작 시 안내 메시지 숨김
+                headphoneGuide.style.display = 'none';
                 
                 const resultArea = document.getElementById('resultArea');
                 resultArea.style.display = 'block';
@@ -666,7 +651,7 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
-                    a.download = `나의노래방-${currentSongData.title} - ${currentSongData.artist}.webm`;
+                    a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
