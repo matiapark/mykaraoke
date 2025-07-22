@@ -458,15 +458,27 @@
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
+                    // 1. 현재 곡 녹음 중지 (결과가 저장됨)
+                    isStoppingManually = false; 
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    cleanupAudioResources();
+                    disableNoSleep();
+
+                    // 2. 다음 곡으로 이동
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex < currentPlaylist.length) {
                         const nextSong = currentPlaylist[currentPlaylistIndex];
-                        prepareKaraoke(nextSong, true);
+                        // 3. 다음 곡을 준비만 하고 '시작' 버튼을 누르기를 기다립니다.
+                        prepareKaraoke(nextSong, true); 
                     } else {
-                        alert('플레이리스트가 종료되었습니다.');
-                        returnToSearchView();
+                        // 마지막 곡 완료 시, 플레이리스트의 처음으로 돌아가 대기합니다.
+                        currentPlaylistIndex = 0;
+                        const firstSong = currentPlaylist[currentPlaylistIndex];
+                        prepareKaraoke(firstSong, true);
                     }
-                } else {
+                } else { // 단일 곡 모드
                     if (!isSinging) return;
                     isStoppingManually = false; 
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -518,15 +530,7 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
 
-            if (isPlaylistMode) {
-                 if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    player.playVideo();
-                    stopBtn.disabled = false;
-                 }
-                 return;
-            }
-
-            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 ▼▼▼▼▼ ---
+            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 (공통 로직) ▼▼▼▼▼ ---
             try {
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
