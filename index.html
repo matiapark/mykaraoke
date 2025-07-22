@@ -363,7 +363,6 @@
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
-        let currentSongData = null; // 현재 곡 정보를 저장할 변수
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -492,8 +491,6 @@
             if (isPreparing) return;
             isPreparing = true;
             
-            currentSongData = songData; // 현재 곡 정보 저장
-            
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
@@ -521,15 +518,7 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
 
-            if (isPlaylistMode) {
-                 if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    player.playVideo();
-                    stopBtn.disabled = false;
-                 }
-                 return;
-            }
-
-            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 ▼▼▼▼▼ ---
+            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 (공통 로직) ▼▼▼▼▼ ---
             try {
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -573,7 +562,7 @@
         }
 
         /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
-        function stopSinging() {
+        async function stopSinging() {
             if (isPlaylistMode) {
                 if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
                     player.pauseVideo();
@@ -582,7 +571,6 @@
             }
 
             if (!isSinging) return;
-            
             isStoppingManually = true;
 
             if (player) {
@@ -590,18 +578,8 @@
                 player.pauseVideo();
             }
             
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            
-            isSinging = false;
+            await cleanupAudioResources();
             disableNoSleep();
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
         }
 
         /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
@@ -675,7 +653,7 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
-                    a.download = `나의노래방-${currentSongData.title} - ${currentSongData.artist}.webm`;
+                    a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
