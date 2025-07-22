@@ -473,6 +473,11 @@
                         mediaRecorder.stop();
                     }
                     
+                    if(player) {
+                        player.seekTo(0);
+                        player.pauseVideo();
+                    }
+                    
                     cleanupAudioResources();
                     disableNoSleep();
                 }
@@ -513,7 +518,15 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
 
-            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 (공통 로직) ▼▼▼▼▼ ---
+            if (isPlaylistMode) {
+                 if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    player.playVideo();
+                    stopBtn.disabled = false;
+                 }
+                 return;
+            }
+
+            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 ▼▼▼▼▼ ---
             try {
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
