@@ -560,7 +560,7 @@
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
 
-              catch (err) {
+            } catch (err) {
                 console.error("오디오 시작 실패:", err);
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
@@ -963,4 +963,3 @@
     </script>
 </body>
 </html>
-}
