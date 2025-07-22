@@ -487,8 +487,7 @@
                     }
                     
                     if(player) {
-                        player.seekTo(0);
-                        player.pauseVideo();
+                        player.stopVideo();
                     }
                     
                     cleanupAudioResources();
@@ -589,8 +588,7 @@
             isStoppingManually = true;
 
             if (player) {
-                player.seekTo(0);
-                player.pauseVideo();
+                player.stopVideo();
             }
             
             await cleanupAudioResources();
