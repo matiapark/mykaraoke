@@ -132,11 +132,11 @@
         }
         
         #show-playlist-btn .playlist-icon {
-            color: #28a745; /* 초록색 음표 */
+            color: #28a745;
             font-style: normal;
         }
         .view-toggle-buttons button.active .playlist-icon {
-            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
+            color: #212529;
         }
 
         #search-results-container {
@@ -371,7 +371,6 @@
 
         // --- 초기화 로직 ---
         window.onload = () => {
-            // DOM 요소 할당
             searchView = document.getElementById('search-view');
             karaokeView = document.getElementById('karaoke-view');
             searchInput = document.getElementById('search-input');
@@ -398,7 +397,6 @@
                 canvasCtx = canvas.getContext('2d');
             }
             
-            // 이벤트 리스너 할당
             showSearchBtn.addEventListener('click', () => switchView('search'));
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
             showRecentsBtn.addEventListener('click', () => switchView('recents'));
@@ -442,7 +440,6 @@
             createDecorations('.right', 5, 3);
         };
 
-        // --- YouTube 플레이어 준비 ---
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
                 height: '360', width: '640',
@@ -453,49 +450,32 @@
                 }
             });
         }
-        
-        // --- 상태 관리 ---
+
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 if (isPlaylistMode) {
-                    handlePlaylistSongEnd();
+                    currentPlaylistIndex++;
+                    if (currentPlaylistIndex < currentPlaylist.length) {
+                        const nextSong = currentPlaylist[currentPlaylistIndex];
+                        prepareKaraoke(nextSong, true);
+                    } else {
+                        // 마지막 곡 → 첫 곡으로
+                        currentPlaylistIndex = 0;
+                        const firstSong = currentPlaylist[currentPlaylistIndex];
+                        prepareKaraoke(firstSong, true);
+                    }
                 } else {
                     if (!isSinging) return;
                     isStoppingManually = false; 
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
-                    
                     cleanupAudioResources();
                     disableNoSleep();
                 }
             }
         }
 
-        // 플레이리스트 곡 종료 처리
-        function handlePlaylistSongEnd() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-
-            currentPlaylistIndex++;
-            if (currentPlaylistIndex < currentPlaylist.length) {
-                // 다음 곡으로 이동
-                const nextSong = currentPlaylist[currentPlaylistIndex];
-                prepareKaraoke(nextSong, true);
-            } else {
-                // 플레이리스트 종료 시 첫 곡으로 이동
-                alert('플레이리스트가 종료되었습니다.');
-                currentPlaylistIndex = 0;
-                prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
-                player.seekTo(0);
-                player.pauseVideo();
-            }
-        }
-
-        // --- 노래방 핵심 로직 ---
-
-        /** 노래방 화면으로 전환하고 노래를 준비합니다. */
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -523,7 +503,6 @@
             isPreparing = false;
         }
 
-        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
 
@@ -568,9 +547,9 @@
             }
         }
 
-        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
         async function stopSinging() {
-            if (!isSinging) return;
+            if (!isSinging && !isPlaylistMode) return;
+
             isStoppingManually = true;
 
             if (player) {
@@ -578,19 +557,13 @@
                 player.pauseVideo();
             }
             
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-            
             await cleanupAudioResources();
             disableNoSleep();
-            
-            // 시작 버튼 활성화
+
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
 
-        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
             if (player) player.stopVideo();
             await cleanupAudioResources();
@@ -603,7 +576,6 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             if (isSinging === false && isStoppingManually === false) return;
             
@@ -628,39 +600,53 @@
             audioContext = null;
 
             isSinging = false;
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
         }
-        
-        // --- 헬퍼 함수 ---
+
         function setupMediaRecorder() {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
             mediaRecorder.onstop = () => {
-                if (isStoppingManually) {
-                    resetState();
-                    isStoppingManually = false;
-                    return; 
-                }
-                
-                // 녹음 정상 종료
-                document.getElementById('resultArea').style.display = 'block';
-                const resultTitle = document.querySelector('#resultArea h4');
-                resultTitle.textContent = '녹음 완료!';
-                const audioPlayer = document.getElementById('recordedAudio');
-                const downloadBtn = document.getElementById('downloadBtn');
-                audioPlayer.style.display = 'block';
                 const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
-                audioPlayer.src = url;
-                downloadBtn.style.display = 'inline-block';
-                downloadBtn.onclick = () => {
-                    const a = document.createElement('a');
-                    a.style.display = 'none'; a.href = url;
-                    a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                };
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
                 recordedChunks = [];
+
+                if (isPlaylistMode) {
+                    currentPlaylistIndex++;
+                    if (currentPlaylistIndex < currentPlaylist.length) {
+                        const nextSong = currentPlaylist[currentPlaylistIndex];
+                        prepareKaraoke(nextSong, true);
+                    } else {
+                        currentPlaylistIndex = 0;
+                        const firstSong = currentPlaylist[currentPlaylistIndex];
+                        prepareKaraoke(firstSong, true);
+                    }
+                } else {
+                    document.getElementById('resultArea').style.display = 'block';
+                    document.querySelector('#resultArea h4').textContent = '녹음 완료!';
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    audioPlayer.style.display = 'block';
+                    audioPlayer.src = url;
+                    document.getElementById('downloadBtn').style.display = 'inline-block';
+                    document.getElementById('downloadBtn').onclick = () => {
+                        const a = document.createElement('a');
+                        a.style.display = 'none'; a.href = url;
+                        a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    };
+                }
             };
         }
 
@@ -677,7 +663,7 @@
                 }
             });
         }
-        
+
         function resetState() {
             recordedChunks = [];
             const resultArea = document.getElementById('resultArea');
@@ -689,7 +675,6 @@
             clearVisualizer();
         }
 
-        // --- 검색/UI 관련 기존 함수들 ---
         function createDecorations(containerSelector, starCount, balloonCount) {
             const container = document.querySelector(containerSelector);
             if (!container) return;
@@ -707,7 +692,7 @@
             for (let i = 0; i < starCount; i++) createIcon('star');
             for (let i = 0; i < balloonCount; i++) createIcon('balloon');
         }
-        
+
         function switchView(view) {
             currentView = view;
             [showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn].forEach(btn => btn.classList.remove('active'));
@@ -723,7 +708,7 @@
             else if (view === 'recents') { renderRecents(); }
             else if (view === 'playlist') { renderPlaylist(); }
         }
-        
+
         const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
         const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
         const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
