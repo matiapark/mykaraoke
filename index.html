@@ -360,7 +360,7 @@
     <script>
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
-        let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0;
+        let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0, currentSongData = null;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
 
@@ -457,28 +457,24 @@
         // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                if (isPlaylistMode) {
-                    currentPlaylistIndex++;
-                    if (currentPlaylistIndex < currentPlaylist.length) {
-                        const nextSong = currentPlaylist[currentPlaylistIndex];
-                        prepareKaraoke(nextSong, true);
-                    } else {
-                        alert('플레이리스트가 종료되었습니다.');
-                        returnToSearchView();
-                    }
-                } else {
-                    if (!isSinging) return;
-                    isStoppingManually = false; 
+                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
+                if (isSinging) {
+                    isStoppingManually = false;
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
-                    
-                    if(player) {
-                        player.stopVideo();
-                    }
-                    
                     cleanupAudioResources();
                     disableNoSleep();
+                }
+
+                if (isPlaylistMode) {
+                    currentPlaylistIndex++;
+                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
+                    }
+                    const nextSong = currentPlaylist[currentPlaylistIndex];
+                    prepareKaraoke(nextSong, true);
                 }
             }
         }
@@ -490,6 +486,7 @@
             if (isPreparing) return;
             isPreparing = true;
             
+            currentSongData = songData; // 현재 곡 정보 저장
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
@@ -517,7 +514,6 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
 
-            // --- ▼▼▼▼▼ 마이크 권한 요청 및 오디오 리소스 생성 (공통 로직) ▼▼▼▼▼ ---
             try {
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -541,7 +537,8 @@
                     });
                 });
                 mediaRecorder = new MediaRecorder(audioStream);
-                setupMediaRecorder();
+                // 녹음 시작 시 현재 곡 정보를 넘겨줍니다.
+                setupMediaRecorder(currentSongData); 
 
                 player.playVideo();
                 mediaRecorder.start();
@@ -557,28 +554,33 @@
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
             }
-             // --- ▲▲▲▲▲ 마이크 권한 요청 및 오디오 리소스 생성 ▲▲▲▲▲ ---
         }
 
         /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
         async function stopSinging() {
-            if (isPlaylistMode) {
-                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    player.pauseVideo();
-                }
-                return;
-            }
-
             if (!isSinging) return;
             isStoppingManually = true;
 
-            if (player) {
-                player.stopVideo();
+            // 녹음 중지
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
             }
             
+            // 재생 중인 노래를 0초로 이동하고 일시정지
+            if (player) {
+                player.seekTo(0);
+                player.pauseVideo();
+            }
+            
+            // 오디오 리소스 정리
             await cleanupAudioResources();
             disableNoSleep();
+
+            // '시작' 버튼 활성화
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
         }
+
 
         /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
@@ -586,6 +588,7 @@
             await cleanupAudioResources();
             
             isPlaylistMode = false;
+            currentSongData = null;
             
             karaokeView.style.display = 'none';
             searchView.style.display = 'block';
@@ -595,12 +598,11 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            if (isSinging === false && isStoppingManually === false) return;
-            
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+            // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
@@ -625,7 +627,7 @@
         }
         
         // --- 헬퍼 함수 ---
-        function setupMediaRecorder() {
+        function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
@@ -637,7 +639,7 @@
                     return; 
                 }
                 
-                // 녹음 정상 종료
+                // 녹음 정상 종료 시 파일 저장
                 document.getElementById('resultArea').style.display = 'block';
                 const resultTitle = document.querySelector('#resultArea h4');
                 resultTitle.textContent = '녹음 완료!';
@@ -651,7 +653,8 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
-                    a.download = `나의노래방-${document.getElementById('karaoke-title').textContent.trim()}.webm`;
+                    // 파일 이름을 녹음 시작 시의 곡 정보로 설정합니다.
+                    a.download = `나의노래방-${songForRecording.title.trim()} - ${songForRecording.artist.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
