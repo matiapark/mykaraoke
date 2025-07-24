@@ -566,10 +566,9 @@
                 mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
             }
             
-            // 재생 중인 노래를 0초로 이동하고 일시정지
+            // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
             if (player) {
-                player.seekTo(0);
-                player.pauseVideo();
+                player.stopVideo();
             }
             
             // 오디오 리소스 정리
