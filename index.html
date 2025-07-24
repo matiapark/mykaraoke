@@ -457,25 +457,39 @@
         // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
-                if (isSinging) {
-                    isStoppingManually = false;
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
-                    }
-                    cleanupAudioResources();
-                    disableNoSleep();
-                }
+                // 비동기 처리를 위해 즉시 실행 함수 사용
+                (async () => {
+                    const wasSinging = isSinging; // 리소스 정리 전 현재 노래중 상태 저장
 
-                if (isPlaylistMode) {
-                    currentPlaylistIndex++;
-                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
-                    if (currentPlaylistIndex >= currentPlaylist.length) {
-                        currentPlaylistIndex = 0;
+                    if (wasSinging) {
+                        isStoppingManually = false;
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop(); // 현재 곡 녹음 저장
+                        }
+                        disableNoSleep();
                     }
-                    const nextSong = currentPlaylist[currentPlaylistIndex];
-                    prepareKaraoke(nextSong, true);
-                }
+
+                    if (isPlaylistMode) {
+                        if (!wasSinging) return; // 노래 중이 아니었다면 다음 곡으로 넘어가지 않음
+
+                        currentPlaylistIndex++;
+                        if (currentPlaylistIndex >= currentPlaylist.length) {
+                            currentPlaylistIndex = 0; // 플레이리스트 순환
+                        }
+                        const nextSong = currentPlaylist[currentPlaylistIndex];
+                        
+                        await prepareKaraoke(nextSong, true); // 다음 곡 준비 (내부에서 리소스 정리)
+                        await startSinging(); // 비주얼라이저 활성화를 위해 다음 곡 자동 시작
+
+                    } else { // 단일 곡 모드
+                        if (wasSinging) {
+                           await cleanupAudioResources(); // 모든 오디오 리소스 정리
+                        }
+                        player.seekTo(0); // 0초로 이동
+                        player.pauseVideo(); // 일시정지하여 대기
+                        startBtn.disabled = false; // 시작 버튼 활성화
+                    }
+                })();
             }
         }
 
@@ -609,7 +623,10 @@
             if (audioContext && audioContext.state !== 'closed') {
                 await audioContext.close();
             }
+            
             if (audioStream) {
+                // '퍽'하는 잡음을 줄이기 위해 스트림을 멈추기 전 아주 짧은 딜레이를 줍니다.
+                await new Promise(resolve => setTimeout(resolve, 50));
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
@@ -923,7 +940,11 @@
                 return;
             }
             currentPlaylistIndex = 0;
-            prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
+            // 플레이리스트 첫 곡은 자동 시작
+            (async () => {
+                await prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
+                await startSinging();
+            })();
         }
         const enableNoSleep = () => noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
         const disableNoSleep = () => noSleepVideo.pause();
