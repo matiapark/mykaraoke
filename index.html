@@ -454,13 +454,11 @@
             });
         }
         
-        // --- 상태 관리 (수정됨) ---
+        // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // 비동기 처리를 위해 즉시 실행 함수(IIFE)를 사용합니다.
                 (async () => {
-                    const wasSinging = isSinging; // 리소스가 정리되기 전, 현재 노래 중이었는지 상태를 저장합니다.
-                    if (!wasSinging) return; // 노래 중이 아니었다면 아무 작업도 하지 않습니다.
+                    if (!isSinging) return; // 노래 중이 아니었다면 아무 작업도 하지 않습니다.
 
                     // 노래가 끝났을 때 공통적으로 처리할 부분입니다.
                     isStoppingManually = false;
@@ -468,25 +466,20 @@
                         mediaRecorder.stop(); // 현재 곡의 녹음을 중지하고 저장합니다.
                     }
                     disableNoSleep();
-
+                    
                     if (isPlaylistMode) {
                         // 플레이리스트 모드일 경우, 다음 곡을 준비하고 대기합니다.
                         currentPlaylistIndex++;
                         if (currentPlaylistIndex >= currentPlaylist.length) {
-                            currentPlaylistIndex = 0; // 마지막 곡이면 처음으로 순환합니다.
+                            currentPlaylistIndex = 0;
                         }
                         const nextSong = currentPlaylist[currentPlaylistIndex];
-                        
-                        // 다음 곡을 준비합니다. `prepareKaraoke`는 내부적으로 리소스를 정리하고
-                        // '시작' 버튼을 활성화하므로, 이 함수 호출만으로 충분합니다.
-                        // 이제 다음 곡을 부르려면 사용자가 직접 '시작'을 눌러야 합니다.
                         await prepareKaraoke(nextSong, true);
-
                     } else {
                         // 단일 곡 모드일 경우, 모든 리소스를 정리하고 0초로 돌아가 대기합니다.
                         await cleanupAudioResources(); 
-                        player.seekTo(0);      // 동영상을 0초로 이동합니다.
-                        player.pauseVideo();   // 동영상을 일시정지하여 대기 상태로 만듭니다.
+                        player.seekTo(0);              // 동영상을 0초로 이동합니다.
+                        player.pauseVideo();           // 동영상을 일시정지하여 대기 상태로 만듭니다.
                     }
                 })();
             }
@@ -608,7 +601,7 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. (수정됨) */
+        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
@@ -623,8 +616,6 @@
                 await audioContext.close();
             }
             if (audioStream) {
-                // '퍽'하는 잡음을 줄이기 위해 스트림을 멈추기 전 아주 짧은 딜레이를 줍니다.
-                await new Promise(resolve => setTimeout(resolve, 50));
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
