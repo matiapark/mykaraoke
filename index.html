@@ -363,6 +363,7 @@
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0, currentSongData = null;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
+        let isFirstSong = true; // ※추가※ 헤드폰 가이드 표시 여부를 위한 플래그
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -491,7 +492,14 @@
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
-            headphoneGuide.style.display = 'flex';
+            
+            // ※수정※ 첫 곡에만 헤드폰 가이드 표시
+            if (isFirstSong) {
+                headphoneGuide.style.display = 'flex';
+                isFirstSong = false;
+            } else {
+                headphoneGuide.style.display = 'none';
+            }
             
             await cleanupAudioResources();
             
@@ -583,8 +591,9 @@
         }
 
 
-        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
+        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. (수정됨) */
         async function returnToSearchView() {
+            isFirstSong = true; // ※추가※ 헤드폰 가이드가 다시 표시되도록 플래그를 초기화합니다.
             if (player) player.stopVideo();
             await cleanupAudioResources();
             
@@ -958,5 +967,3 @@
     </script>
 </body>
 </html>
-}
-한 곡 재생 완료되면 녹음 완료 부분이 나오게 해줘.
