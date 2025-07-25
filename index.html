@@ -454,39 +454,46 @@
             });
         }
         
-        // --- 상태 관리 (수정됨) ---
+        // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // 비동기 처리를 위해 즉시 실행 함수(IIFE)를 사용합니다.
-                (async () => {
-                    const wasSinging = isSinging; // 리소스가 정리되기 전, 현재 노래 중이었는지 상태를 저장합니다.
-                    if (!wasSinging) return; // 노래 중이 아니었다면 아무 작업도 하지 않습니다.
-
-                    // 노래가 끝났을 때 공통적으로 처리할 부분입니다.
+                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
+                if (isSinging) {
                     isStoppingManually = false;
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop(); // 현재 곡의 녹음을 중지하고 저장합니다.
+                    try {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        } catch (e) {
+            console.warn('mediaRecorder stop 에러 무시:', e);
+        }
+                        mediaRecorder.stop();
                     }
+                    cleanupAudioResources();
                     disableNoSleep();
+                }
 
-                    if (isPlaylistMode) {
-                        // 플레이리스트 모드일 경우, 다음 곡을 자동으로 준비하고 재생합니다.
-                        currentPlaylistIndex++;
-                        if (currentPlaylistIndex >= currentPlaylist.length) {
-                            currentPlaylistIndex = 0; // 마지막 곡이면 처음으로 순환합니다.
-                        }
-                        const nextSong = currentPlaylist[currentPlaylistIndex];
-                        
-                        await prepareKaraoke(nextSong, true); // 다음 곡을 준비합니다 (내부에서 이전 리소스를 정리합니다).
-                        await startSinging(); // 비주얼라이저 활성화를 위해 다음 곡을 자동으로 시작합니다.
-
-                    } else {
-                        // 단일 곡 모드일 경우, 모든 리소스를 정리하고 0초로 돌아가 대기합니다.
-                        await cleanupAudioResources(); 
-                        player.seekTo(0);      // 동영상을 0초로 이동합니다.
-                        player.pauseVideo();   // 동영상을 일시정지하여 대기 상태로 만듭니다.
+                if (isPlaylistMode) {
+            currentPlaylistIndex++;
+            if (currentPlaylistIndex >= currentPlaylist.length) {
+                currentPlaylistIndex = 0;
+            }
+            const nextSong = currentPlaylist[currentPlaylistIndex];
+            prepareKaraoke(nextSong, true);
+        } else {
+            // 단일곡 모드일 때 0초로 리셋
+            if (player) {
+                player.seekTo(0, true);
+            }
+        }
+                    currentPlaylistIndex++;
+                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
                     }
-                })();
+                    const nextSong = currentPlaylist[currentPlaylistIndex];
+                    prepareKaraoke(nextSong, true);
+                }
             }
         }
 
@@ -514,6 +521,11 @@
             
             if (player) {
                 player.cueVideoById(songData.videoId);
+
+            // --- 사운드바 활성화를 위해 getPitch 실행 준비
+            if (!isPlaylistMode && !isSinging) {
+                getPitch();  // 비쥬얼라이저 작동
+            }
             }
 
             startBtn.disabled = false;
@@ -573,7 +585,13 @@
             isStoppingManually = true;
 
             // 녹음 중지
+            try {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        } catch (e) {
+            console.warn('mediaRecorder stop 에러 무시:', e);
+        }
                 mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
             }
             
@@ -606,23 +624,34 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. (수정됨) */
+        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
             // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
+            try {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
+        } catch (e) {
+            console.warn('mediaRecorder stop 에러 무시:', e);
+        }
+                mediaRecorder.stop();
+            }
             
-            if (audioContext && audioContext.state !== 'closed') {
+            try {
+            if (audioContext) {
+                if (audioContext.state === 'running') await audioContext.suspend();
+                if (audioContext.state !== 'closed') await audioContext.close();
+            }
+        } catch (e) {
+            console.warn('audioContext 종료 에러 무시:', e);
+        }
                 await audioContext.close();
             }
             if (audioStream) {
-                // '퍽'하는 잡음을 줄이기 위해 스트림을 멈추기 전 아주 짧은 딜레이를 줍니다.
-                await new Promise(resolve => setTimeout(resolve, 50));
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
