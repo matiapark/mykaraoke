@@ -457,28 +457,25 @@
         // --- 상태 관리 (수정됨) ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
+                const wasPlaylistMode = isPlaylistMode; // 비동기 작업 전 현재 상태를 저장합니다.
                 (async () => {
-                    if (!isSinging) return; // 노래 중이 아니었다면 아무 작업도 하지 않습니다.
+                    if (!isSinging) return;
 
-                    // 노래가 끝났을 때 공통적으로 처리할 부분입니다.
                     isStoppingManually = false;
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop(); // 현재 곡의 녹음을 중지하고 저장합니다.
+                        mediaRecorder.stop();
                     }
                     disableNoSleep();
                     
-                    if (isPlaylistMode) {
-                        // 플레이리스트 모드일 경우, 다음 곡을 준비하고 대기합니다.
+                    if (wasPlaylistMode) {
                         currentPlaylistIndex++;
                         if (currentPlaylistIndex >= currentPlaylist.length) {
                             currentPlaylistIndex = 0;
                         }
                         const nextSong = currentPlaylist[currentPlaylistIndex];
-                        await prepareKaraoke(nextSong, true); // 다음 곡을 준비하고 '시작'을 기다립니다.
+                        await prepareKaraoke(nextSong, true);
                     } else {
-                        // 단일 곡 모드일 경우, 모든 리소스를 정리하고 0초로 돌아가 대기합니다.
-                        await cleanupAudioResources(); 
-                        // 현재 곡을 다시 cue하여 0초 위치의 재생 준비 상태로 만듭니다.
+                        await cleanupAudioResources();
                         if (player && currentSongData) {
                             player.cueVideoById(currentSongData.videoId);
                         }
