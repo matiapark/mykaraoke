@@ -571,7 +571,7 @@
                 mediaRecorder.stop();
             }
             
-            // ※수정※ 안정성을 위해 stopVideo() 대신 seekTo(0)와 pauseVideo()를 사용합니다.
+            // ※수정※ 안정성을 위해 stopVideo() 대신 seekTo()와 pauseVideo()를 사용합니다.
             if (player) {
                 player.seekTo(0);
                 player.pauseVideo();
@@ -619,6 +619,7 @@
             //     await audioContext.close();
             // }
 
+            // 마이크 표시등을 끄기 위해 트랙은 중지합니다.
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
             }
