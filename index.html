@@ -457,7 +457,7 @@
         // --- 상태 관리 (수정됨) ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                const wasPlaylistMode = isPlaylistMode; // 비동기 작업 전 현재 상태를 저장합니다.
+                const wasPlaylistMode = isPlaylistMode; // ※수정※ 비동기 작업 전 현재 상태를 저장합니다.
                 (async () => {
                     if (!isSinging) return;
 
@@ -467,7 +467,7 @@
                     }
                     disableNoSleep();
                     
-                    if (wasPlaylistMode) {
+                    if (wasPlaylistMode) { // ※수정※ 저장된 상태 값을 기준으로 분기합니다.
                         currentPlaylistIndex++;
                         if (currentPlaylistIndex >= currentPlaylist.length) {
                             currentPlaylistIndex = 0;
