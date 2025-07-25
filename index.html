@@ -307,7 +307,7 @@
           <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
       </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
-          <button id="start-playlist-btn"▶️ 플레이리스트 시작</button>
+          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
       </div>
       <div id="search-results-container">
           <ul id="search-results">
@@ -363,7 +363,6 @@
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0, currentSongData = null;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
-        let isFirstSong = true; // ※추가※ 헤드폰 가이드 표시 여부를 위한 플래그
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -455,18 +454,28 @@
             });
         }
         
-        // --- 상태 관리 (수정됨) ---
+        // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                if (!isSinging) return;
-
-                // 노래가 끝나면 녹음기만 중지시킵니다.
-                // 모든 후속 처리는 녹음기의 onstop 이벤트 핸들러가 담당하여 타이밍 문제를 해결합니다.
-                isStoppingManually = false;
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
+                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
+                if (isSinging) {
+                    isStoppingManually = false;
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    cleanupAudioResources();
+                    disableNoSleep();
                 }
-                disableNoSleep();
+
+                if (isPlaylistMode) {
+                    currentPlaylistIndex++;
+                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
+                    }
+                    const nextSong = currentPlaylist[currentPlaylistIndex];
+                    prepareKaraoke(nextSong, true);
+                }
             }
         }
 
@@ -482,17 +491,12 @@
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
-            
-            // ※수정※ 첫 곡에만 헤드폰 가이드 표시
-            if (isFirstSong) {
-                headphoneGuide.style.display = 'flex';
-                isFirstSong = false;
-            } else {
-                headphoneGuide.style.display = 'none';
-            }
+            headphoneGuide.style.display = 'flex';
             
             await cleanupAudioResources();
-            resetState();
+            
+            // ※수정※ 타이밍 문제 해결을 위해 resetState() 호출을 제거합니다.
+            // resetState(); 
             
             isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
@@ -579,9 +583,8 @@
         }
 
 
-        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. (수정됨) */
+        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
-            isFirstSong = true; // ※추가※ 헤드폰 가이드가 다시 표시되도록 플래그를 초기화합니다.
             if (player) player.stopVideo();
             await cleanupAudioResources();
             
@@ -594,7 +597,7 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. (수정됨) */
+        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
@@ -609,8 +612,6 @@
                 await audioContext.close();
             }
             if (audioStream) {
-                // '퍽'하는 잡음을 줄이기 위해 스트림을 멈추기 전 아주 짧은 딜레이를 줍니다.
-                await new Promise(resolve => setTimeout(resolve, 50));
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
@@ -626,7 +627,7 @@
             stopBtn.disabled = true;
         }
         
-        // --- 헬퍼 함수 (수정됨) ---
+        // --- 헬퍼 함수 ---
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -639,7 +640,7 @@
                     return; 
                 }
                 
-                // 1. 녹음 정상 종료 시 파일 저장 UI를 먼저 표시합니다.
+                // 녹음 정상 종료 시 파일 저장
                 document.getElementById('resultArea').style.display = 'block';
                 const resultTitle = document.querySelector('#resultArea h4');
                 resultTitle.textContent = '녹음 완료!';
@@ -653,31 +654,11 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
+                    // 파일 이름을 녹음 시작 시의 곡 정보로 설정합니다.
                     a.download = `나의노래방-${songForRecording.title.trim()} - ${songForRecording.artist.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
-
-                // 2. 녹음 결과 표시 후, 현재 모드에 따라 다음 동작을 결정합니다.
-                if (isPlaylistMode) {
-                    // 플레이리스트 모드일 경우, 다음 곡을 준비합니다.
-                    (async () => {
-                        currentPlaylistIndex++;
-                        if (currentPlaylistIndex >= currentPlaylist.length) {
-                            currentPlaylistIndex = 0;
-                        }
-                        const nextSong = currentPlaylist[currentPlaylistIndex];
-                        await prepareKaraoke(nextSong, true);
-                    })();
-                } else {
-                    // 단일 곡 모드일 경우, 현재 곡을 다시 로드하여 0초에서 대기합니다.
-                    (async () => {
-                        await cleanupAudioResources();
-                        if (player && currentSongData) {
-                            player.cueVideoById(currentSongData.videoId);
-                        }
-                    })();
-                }
             };
         }
 
@@ -977,3 +958,5 @@
     </script>
 </body>
 </html>
+}
+한 곡 재생 완료되면 녹음 완료 부분이 나오게 해줘.
