@@ -467,6 +467,9 @@
                     }
                     disableNoSleep();
                     
+                    // ※수정※ 녹음 결과가 표시될 시간을 확보하기 위해 짧은 지연시간을 추가합니다.
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
                     if (wasPlaylistMode) { // ※수정※ 저장된 상태 값을 기준으로 분기합니다.
                         currentPlaylistIndex++;
                         if (currentPlaylistIndex >= currentPlaylist.length) {
