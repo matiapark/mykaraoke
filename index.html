@@ -457,37 +457,34 @@
         // --- 상태 관리 (수정됨) ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // 비동기 처리를 위해 즉시 실행 함수 사용
+                // 비동기 처리를 위해 즉시 실행 함수(IIFE)를 사용합니다.
                 (async () => {
-                    const wasSinging = isSinging; // 리소스 정리 전 현재 노래중 상태 저장
+                    const wasSinging = isSinging; // 리소스가 정리되기 전, 현재 노래 중이었는지 상태를 저장합니다.
+                    if (!wasSinging) return; // 노래 중이 아니었다면 아무 작업도 하지 않습니다.
 
-                    if (wasSinging) {
-                        isStoppingManually = false;
-                        if (mediaRecorder && mediaRecorder.state === 'recording') {
-                            mediaRecorder.stop(); // 현재 곡 녹음 저장
-                        }
-                        disableNoSleep();
+                    // 노래가 끝났을 때 공통적으로 처리할 부분입니다.
+                    isStoppingManually = false;
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop(); // 현재 곡의 녹음을 중지하고 저장합니다.
                     }
+                    disableNoSleep();
 
                     if (isPlaylistMode) {
-                        if (!wasSinging) return; // 노래 중이 아니었다면 다음 곡으로 넘어가지 않음
-
+                        // 플레이리스트 모드일 경우, 다음 곡을 자동으로 준비하고 재생합니다.
                         currentPlaylistIndex++;
                         if (currentPlaylistIndex >= currentPlaylist.length) {
-                            currentPlaylistIndex = 0; // 플레이리스트 순환
+                            currentPlaylistIndex = 0; // 마지막 곡이면 처음으로 순환합니다.
                         }
                         const nextSong = currentPlaylist[currentPlaylistIndex];
                         
-                        await prepareKaraoke(nextSong, true); // 다음 곡 준비 (내부에서 리소스 정리)
-                        await startSinging(); // 비주얼라이저 활성화를 위해 다음 곡 자동 시작
+                        await prepareKaraoke(nextSong, true); // 다음 곡을 준비합니다 (내부에서 이전 리소스를 정리합니다).
+                        await startSinging(); // 비주얼라이저 활성화를 위해 다음 곡을 자동으로 시작합니다.
 
-                    } else { // 단일 곡 모드
-                        if (wasSinging) {
-                           await cleanupAudioResources(); // 모든 오디오 리소스 정리
-                        }
-                        player.seekTo(0); // 0초로 이동
-                        player.pauseVideo(); // 일시정지하여 대기
-                        startBtn.disabled = false; // 시작 버튼 활성화
+                    } else {
+                        // 단일 곡 모드일 경우, 모든 리소스를 정리하고 0초로 돌아가 대기합니다.
+                        await cleanupAudioResources(); 
+                        player.seekTo(0);      // 동영상을 0초로 이동합니다.
+                        player.pauseVideo();   // 동영상을 일시정지하여 대기 상태로 만듭니다.
                     }
                 })();
             }
@@ -580,10 +577,9 @@
                 mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
             }
             
-            // 재생 중인 노래를 0초로 이동하고 일시정지
+            // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
             if (player) {
-                player.seekTo(0);
-                player.pauseVideo();
+                player.stopVideo();
             }
             
             // 오디오 리소스 정리
@@ -624,7 +620,6 @@
             if (audioContext && audioContext.state !== 'closed') {
                 await audioContext.close();
             }
-            
             if (audioStream) {
                 // '퍽'하는 잡음을 줄이기 위해 스트림을 멈추기 전 아주 짧은 딜레이를 줍니다.
                 await new Promise(resolve => setTimeout(resolve, 50));
@@ -934,18 +929,14 @@
             renderPlaylist();
         }
 
-        function startPlaylist() { // (수정됨)
+        function startPlaylist() {
             currentPlaylist = getPlaylist();
             if (currentPlaylist.length === 0) {
                 alert('플레이리스트에 곡이 없습니다.');
                 return;
             }
             currentPlaylistIndex = 0;
-            // 플레이리스트 첫 곡은 자동 시작
-            (async () => {
-                await prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
-                await startSinging();
-            })();
+            prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
         }
         const enableNoSleep = () => noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
         const disableNoSleep = () => noSleepVideo.pause();
