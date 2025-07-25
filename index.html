@@ -454,7 +454,7 @@
             });
         }
         
-        // --- 상태 관리 ---
+        // --- 상태 관리 (수정됨) ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 // 비동기 처리를 위해 즉시 실행 함수 사용
@@ -580,9 +580,10 @@
                 mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
             }
             
-            // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
+            // 재생 중인 노래를 0초로 이동하고 일시정지
             if (player) {
-                player.stopVideo();
+                player.seekTo(0);
+                player.pauseVideo();
             }
             
             // 오디오 리소스 정리
@@ -609,7 +610,7 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
+        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. (수정됨) */
         async function cleanupAudioResources() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
@@ -933,7 +934,7 @@
             renderPlaylist();
         }
 
-        function startPlaylist() {
+        function startPlaylist() { // (수정됨)
             currentPlaylist = getPlaylist();
             if (currentPlaylist.length === 0) {
                 alert('플레이리스트에 곡이 없습니다.');
