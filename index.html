@@ -529,7 +529,7 @@
                 document.getElementById('recordedAudio').style.display = 'none';
                 document.getElementById('downloadBtn').style.display = 'none';
 
-                // ※수정※ audioContext를 재사용하거나 새로 생성합니다.
+                // ※수정※ audioContext를 재사용하거나 새로 생성하여 모바일 성능 및 안정성을 높입니다.
                 if (!audioContext || audioContext.state === 'closed') {
                     audioContext = new AudioContext();
                 }
@@ -544,7 +544,6 @@
                     });
                 });
                 mediaRecorder = new MediaRecorder(audioStream);
-                // 녹음 시작 시 현재 곡 정보를 넘겨줍니다.
                 setupMediaRecorder(currentSongData); 
 
                 player.playVideo();
@@ -568,29 +567,31 @@
             if (!isSinging) return;
             isStoppingManually = true;
 
-            // 녹음 중지
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
             
-            // ※수정※ 안정성을 위해 stopVideo() 대신 seekTo()와 pauseVideo()를 사용합니다.
+            // ※수정※ 안정성을 위해 stopVideo() 대신 seekTo(0)와 pauseVideo()를 사용합니다.
             if (player) {
                 player.seekTo(0);
                 player.pauseVideo();
             }
             
-            // 오디오 리소스 정리
             await cleanupAudioResources();
             disableNoSleep();
 
-            // '시작' 버튼 활성화
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
 
 
-        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
+        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. (수정됨) */
         async function returnToSearchView() {
+            // ※수정※ 선곡 화면으로 나갈 때만 AudioContext를 완전히 닫습니다.
+            if (audioContext && audioContext.state !== 'closed') {
+                await audioContext.close();
+                audioContext = null;
+            }
             if (player) player.stopVideo();
             await cleanupAudioResources();
             
@@ -613,12 +614,11 @@
                 mediaRecorder.stop();
             }
             
-            // ※수정※ audioContext를 닫지 않고 재사용하기 위해 주석 처리합니다.
+            // ※수정※ AudioContext를 재사용하므로 여기서는 닫지 않습니다.
             // if (audioContext && audioContext.state !== 'closed') {
             //     await audioContext.close();
             // }
 
-            // 마이크 표시등을 끄기 위해 트랙은 중지합니다.
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
             }
@@ -626,11 +626,10 @@
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
-            // audioContext = null; // ※수정※ audioContext를 재사용하기 위해 null로 만들지 않습니다.
+            // audioContext = null; // ※수정※ 재사용을 위해 null로 만들지 않습니다.
 
             isSinging = false;
             
-            // UI 업데이트
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
