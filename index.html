@@ -19,6 +19,7 @@
             margin: 0;
             padding: 20px;
             overflow-y: auto;
+            touch-action: manipulation;
         }
         h2 { margin-top: 0; }
 
@@ -274,6 +275,27 @@
         #downloadBtn { background-color: #007bff; margin-left: 10px; }
         #downloadBtn:hover { background-color: #0056b3; }
         
+        /* 새로 추가된 스타일 */
+        #keep-awake-alert {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #ffc107;
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 1000;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+        
         @media (max-width: 600px) {
             #search-view { margin-top: 20px; padding: 20px; }
             .title-wrapper h2 { font-size: 2.1em; margin: 0 10px; }
@@ -286,6 +308,11 @@
             #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
+            #keep-awake-alert {
+                width: 90%;
+                text-align: center;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -357,6 +384,8 @@
       </div>
     </div>
 
+    <div id="keep-awake-alert">화면이 꺼지지 않도록 주기적으로 터치해주세요!</div>
+
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
@@ -369,10 +398,12 @@
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
         let noSleep = new NoSleep(); // NoSleep 인스턴스 생성
         let wakeLock = null; // 웨이크락 객체
+        let noSleepTimeout, lastInteractionTime = 0;
+        let stopSilence = () => {}; // 오디오 유지 함수 정리용
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
-        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide;
+        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
 
         // --- 초기화 로직 ---
@@ -397,6 +428,7 @@
             backBtn = document.getElementById('backBtn');
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
+            keepAwakeAlert = document.getElementById('keep-awake-alert');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -431,7 +463,7 @@
             backBtn.onclick = returnToSearchView;
             stopBtn.onclick = stopSinging;
             startBtn.onclick = () => {
-                alert("노래 재생 중에는 화면이 꺼지지 않도록 설정됩니다. 배터리 소모가 증가할 수 있습니다.");
+                alert("노래 재생 중에는 다음 사항을 확인해주세요:\n\n1. 휴대폰 설정에서 '자동 잠금' 시간을 최대한 길게 설정해주세요.\n2. 앱 사용 중에는 다른 앱으로 전환하지 마세요.\n3. 배터리 절약 모드를 해제해주세요.\n4. 화면이 어두워지면 터치하여 계속 활성 상태를 유지해주세요.");
                 startSinging();
             };
 
@@ -447,9 +479,39 @@
                 );
             });
 
+            // visibilitychange 이벤트 핸들러 추가
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // 주기적으로 상호작용 체크
+            document.addEventListener('click', () => lastInteractionTime = Date.now());
+            document.addEventListener('touchstart', () => lastInteractionTime = Date.now());
+
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
         };
+
+        // 화면 가시성 변경 처리
+        function handleVisibilityChange() {
+            if (document.hidden && player && isSinging) {
+                // 화면이 숨겨지면(백그라운드/슬립모드) 재생 중지
+                stopSinging();
+                
+                // 사용자에게 알림
+                if (Notification.permission === 'granted') {
+                    new Notification('나의 노래방 알림', {
+                        body: '화면이 꺼져 재생이 중지되었습니다. 다시 시작하려면 앱으로 돌아가세요.'
+                    });
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            new Notification('나의 노래방 알림', {
+                                body: '화면이 꺼져 재생이 중지되었습니다. 다시 시작하려면 앱으로 돌아가세요.'
+                            });
+                        }
+                    });
+                }
+            }
+        }
 
         // --- YouTube 플레이어 준비 ---
         function onYouTubeIframeAPIReady() {
@@ -473,7 +535,6 @@
                         mediaRecorder.stop();
                     }
                     cleanupAudioResources();
-                    disableNoSleep();
                 }
 
                 if (isPlaylistMode) {
@@ -527,11 +588,37 @@
             // 화면이 꺼지지 않도록 사전 준비
             document.addEventListener('click', enableNoSleep, false);
             document.addEventListener('touchstart', enableNoSleep, false);
+            
+            // 주기적으로 가상의 사용자 상호작용 생성
+            noSleepTimeout = setInterval(() => {
+                if (Date.now() - lastInteractionTime > 10000) { // 10초 이상 상호작용 없으면
+                    simulateUserInteraction();
+                    keepAwakeAlert.style.display = 'block';
+                    setTimeout(() => keepAwakeAlert.style.display = 'none', 3000);
+                }
+            }, 5000);
+        }
+
+        function simulateUserInteraction() {
+            // 가상의 클릭 이벤트 생성
+            const event = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+            });
+            document.dispatchEvent(event);
+            lastInteractionTime = Date.now();
         }
 
         /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
+            
+            // 백그라운드에서 실행 중이면 중지
+            if (document.hidden) {
+                alert('앱이 백그라운드에 있습니다. 화면을 켜고 다시 시도해주세요.');
+                return;
+            }
 
             try {
                 // 웨이크락 요청 (지원되는 브라우저에서)
@@ -566,7 +653,14 @@
                 document.getElementById('recordedAudio').style.display = 'none';
                 document.getElementById('downloadBtn').style.display = 'none';
 
-                audioContext = new AudioContext();
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    latencyHint: 'interactive',
+                    sampleRate: 44100
+                });
+                
+                // 오디오 유지 함수 실행
+                stopSilence = keepAudioActive();
+                
                 pitch = await new Promise((resolve, reject) => {
                     ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, (err, model) => {
                         if (err) return reject(err);
@@ -593,6 +687,28 @@
             }
         }
 
+        // 오디오 컨텍스트 유지를 위한 함수
+        function keepAudioActive() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 1; // 거의 들리지 않는 주파수
+            gainNode.gain.value = 0.001; // 거의 들리지 않는 볼륨
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.start();
+            
+            const interval = setInterval(() => {
+                oscillator.frequency.value = 1;
+            }, 1000);
+            
+            return () => {
+                clearInterval(interval);
+                oscillator.stop();
+                gainNode.disconnect();
+            };
+        }
+
         /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
         async function stopSinging() {
             if (!isSinging) return;
@@ -600,7 +716,7 @@
 
             // 녹음 중지
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
+                mediaRecorder.stop();
             }
             
             // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
@@ -610,23 +726,6 @@
             
             // 오디오 리소스 정리
             await cleanupAudioResources();
-            
-            // 웨이크락 해제
-            if (wakeLock !== null) {
-                wakeLock.release();
-                wakeLock = null;
-            }
-            
-            // NoSleep 비활성화
-            noSleep.disable();
-            disableNoSleep();
-
-            // 이벤트 리스너 제거
-            document.removeEventListener('click', enableNoSleep, false);
-            document.removeEventListener('touchstart', enableNoSleep, false);
-
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
         }
 
         /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
@@ -634,20 +733,6 @@
             if (player) player.stopVideo();
             await cleanupAudioResources();
             
-            // 웨이크락 해제
-            if (wakeLock !== null) {
-                wakeLock.release();
-                wakeLock = null;
-            }
-            
-            // NoSleep 비활성화
-            noSleep.disable();
-            disableNoSleep();
-
-            // 이벤트 리스너 제거
-            document.removeEventListener('click', enableNoSleep, false);
-            document.removeEventListener('touchstart', enableNoSleep, false);
-
             isPlaylistMode = false;
             currentSongData = null;
             
@@ -663,18 +748,40 @@
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+            
             // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
             
             if (audioContext && audioContext.state !== 'closed') {
+                stopSilence();
                 await audioContext.close();
             }
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
+            // 웨이크락 해제
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            
+            // NoSleep 비활성화
+            noSleep.disable();
+            disableNoSleep();
+
+            // 이벤트 리스너 제거
+            document.removeEventListener('click', enableNoSleep, false);
+            document.removeEventListener('touchstart', enableNoSleep, false);
+
+            // 주기적 상호작용 타이머 정리
+            if (noSleepTimeout) {
+                clearInterval(noSleepTimeout);
+                noSleepTimeout = null;
+            }
+
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
