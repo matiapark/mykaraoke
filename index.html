@@ -454,7 +454,7 @@
             });
         }
         
-        // --- 상태 관리 (수정된 부분) ---
+        // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 // '중단' 버튼을 눌러 수동으로 노래를 멈춘 경우에는 stopSinging() 함수가 모든 것을 처리합니다.
@@ -567,26 +567,23 @@
             }
         }
 
-        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
+        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. (수정됨) */
         async function stopSinging() {
             if (!isSinging) return;
             isStoppingManually = true;
 
-            // 녹음 중지
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
-            }
-            
-            // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
+            // 1. 영상 재생을 중지합니다.
             if (player) {
                 player.stopVideo();
             }
             
-            // 오디오 리소스 정리
+            // 2. 모든 오디오 관련 리소스를 비동기적으로 정리하고 기다립니다.
             await cleanupAudioResources();
+
+            // 3. 화면 꺼짐 방지를 해제합니다.
             disableNoSleep();
 
-            // '시작' 버튼 활성화
+            // 4. 모든 정리가 끝난 후, UI를 다시 시작할 수 있도록 재설정합니다.
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
@@ -606,34 +603,36 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
+        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. (수정됨) */
         async function cleanupAudioResources() {
+            // 시각화 애니메이션을 중지합니다.
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
-            // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
+            
+            // 녹음기(MediaRecorder)를 중지합니다.
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
             
-            if (audioContext && audioContext.state !== 'closed') {
-                await audioContext.close();
-            }
+            // 마이크 스트림의 모든 트랙을 중지하여 하드웨어를 우선적으로 해제합니다.
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
+            // 오디오 컨텍스트를 닫습니다.
+            if (audioContext && audioContext.state !== 'closed') {
+                await audioContext.close();
+            }
+            
+            // 모든 관련 전역 변수를 null로 설정하여 완전히 초기화합니다.
+            // 이렇게 하면 다음 '시작' 시에 모든 것을 새로 생성하게 됩니다.
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
             audioContext = null;
-
             isSinging = false;
-            
-            // UI 업데이트
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
         }
         
         // --- 헬퍼 함수 ---
