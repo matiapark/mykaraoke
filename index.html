@@ -482,4 +482,19 @@
 
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
-                    if (currentPlaylistIndex >= current
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
+                    }
+                    const nextSong = currentPlaylist[currentPlaylistIndex];
+                    prepareKaraoke(nextSong, true);
+                } else {
+                    if (player) {
+                        player.stopVideo();
+                    }
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                }
+            }
+        }
+
+        // --- 노래방
