@@ -4,7 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>나의 노래방</title>
-    <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
+    <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js">
+function createDecorations(containerSelector, starCount, balloonCount) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const colors = ['#ffc107', '#007bff', '#28a745', '#dc3545', '#17a2b8', '#6610f2'];
+
+    const createIcon = (type) => {
+        const icon = document.createElement('div');
+        icon.className = type;
+        icon.style.left = `${Math.random() * 90}%`;
+        icon.style.top = `${Math.random() * 80}%`;
+        icon.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        icon.style.animationDelay = `${Math.random() * 4}s`;
+        icon.style.animationDuration = `${2 + Math.random() * 2}s`;
+        container.appendChild(icon);
+    };
+
+    for (let i = 0; i < starCount; i++) createIcon('star');
+    for (let i = 0; i < balloonCount; i++) createIcon('balloon');
+}
+
+</script>
     <style>
         /* 전체 페이지 스타일 */
         body {
@@ -356,7 +378,29 @@
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://www.youtube.com/iframe_api">
+function createDecorations(containerSelector, starCount, balloonCount) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const colors = ['#ffc107', '#007bff', '#28a745', '#dc3545', '#17a2b8', '#6610f2'];
+
+    const createIcon = (type) => {
+        const icon = document.createElement('div');
+        icon.className = type;
+        icon.style.left = `${Math.random() * 90}%`;
+        icon.style.top = `${Math.random() * 80}%`;
+        icon.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        icon.style.animationDelay = `${Math.random() * 4}s`;
+        icon.style.animationDuration = `${2 + Math.random() * 2}s`;
+        container.appendChild(icon);
+    };
+
+    for (let i = 0; i < starCount; i++) createIcon('star');
+    for (let i = 0; i < balloonCount; i++) createIcon('balloon');
+}
+
+</script>
     <script>
         // --- 전역 변수 ---
         // audioStream은 소리 크기 유지를 위해 재사용, audioContext는 리소스 누수 방지를 위해 매번 재생성
