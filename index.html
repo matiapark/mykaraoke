@@ -360,6 +360,7 @@
     <script>
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
+        let wakeLock = null; // Wake Lock 객체를 저장할 변수
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0, currentSongData = null;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
@@ -457,14 +458,9 @@
         // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // 수동 중단 시에는 stopSinging 함수에서 모든 것을 처리하므로,
-                // 이 핸들러는 아무것도 하지 않고 즉시 종료하여 충돌을 방지합니다.
-                if (isStoppingManually) {
-                    return;
-                }
-
-                // 아래 코드는 노래가 수동 중단이 아닌, 정상적으로 끝났을 때만 실행됩니다.
+                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
                 if (isSinging) {
+                    isStoppingManually = false;
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
@@ -474,12 +470,15 @@
 
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
+                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
                     }
                     const nextSong = currentPlaylist[currentPlaylistIndex];
                     prepareKaraoke(nextSong, true);
                 } else {
+                    // 플레이리스트 모드가 아닐 때 (한 곡 재생 모드)
+                    // 노래가 끝나면 플레이어를 중지하고 0초로 되돌려 다시 시작할 수 있게 합니다.
                     if (player) {
                         player.stopVideo();
                     }
@@ -501,7 +500,6 @@
             micErrorMessage.style.display = 'none';
             headphoneGuide.style.display = 'flex';
             
-            // 시작하기 전에 이전 리소스를 확실하게 정리합니다.
             await cleanupAudioResources();
             resetState();
             
@@ -522,6 +520,9 @@
         /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
+            
+            // [수정] Wake Lock API 호출
+            await requestWakeLock();
 
             try {
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
@@ -546,6 +547,7 @@
                     });
                 });
                 mediaRecorder = new MediaRecorder(audioStream);
+                // 녹음 시작 시 현재 곡 정보를 넘겨줍니다.
                 setupMediaRecorder(currentSongData); 
 
                 player.playVideo();
@@ -564,33 +566,29 @@
             }
         }
 
-        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. (수정됨) */
+        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. */
         async function stopSinging() {
-    if (audioSource) {
-        try {
-            audioSource.stop();
-            audioSource.disconnect();
-        } catch (e) {}
-        audioSource = null;
-    }
-    if (gainNode) {
-        gainNode.gain.value = 0;
-    }
-    isPlaying = false;
-    cancelAnimationFrame(animationId);
-}
+            if (!isSinging) return;
+            isStoppingManually = true;
             
-            // **[중요 수정]** 녹음된 데이터가 쌓여 성능을 저하 시키는 것을 막기 위해
-            // '중단' 즉시 동기적으로 데이터를 비웁니다.
-            recordedChunks = [];
+            // [수정] Wake Lock API 해제
+            await releaseWakeLock();
 
+            // 녹음 중지
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
+            }
+            
+            // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
             if (player) {
                 player.stopVideo();
             }
             
+            // 오디오 리소스 정리
             await cleanupAudioResources();
             disableNoSleep();
 
+            // '시작' 버튼 활성화
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
@@ -612,9 +610,16 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
+            // [수정] Wake Lock API 해제
+            await releaseWakeLock();
+
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
+            }
+            // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
             }
             
             if (audioContext && audioContext.state !== 'closed') {
@@ -628,10 +633,44 @@
             audioStream = null;
             mediaRecorder = null;
             audioContext = null;
+
             isSinging = false;
+            
+            // UI 업데이트
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
         }
         
         // --- 헬퍼 함수 ---
+
+        // [추가] Wake Lock API 관련 함수
+        /** Screen Wake Lock을 요청하는 함수 */
+        async function requestWakeLock() {
+            // Wake Lock API가 지원되는 브라우저인지 확인
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock이 활성화되었습니다.');
+                    // Wake Lock이 (예: 탭이 비활성화될 때) 해제되면 알림
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock이 해제되었습니다.');
+                    });
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            } else {
+                console.warn('이 브라우저에서는 Wake Lock API를 지원하지 않습니다.');
+            }
+        }
+
+        /** Screen Wake Lock을 해제하는 함수 */
+        async function releaseWakeLock() {
+            if (wakeLock !== null) {
+                await wakeLock.release();
+                wakeLock = null;
+            }
+        }
+
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -639,11 +678,12 @@
             };
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
-                    resetState();
+                    resetState(); // 수동 중단 시 UI 초기화
                     isStoppingManually = false;
                     return; 
                 }
                 
+                // 녹음 정상 종료 시 파일 저장
                 document.getElementById('resultArea').style.display = 'block';
                 const resultTitle = document.querySelector('#resultArea h4');
                 resultTitle.textContent = '녹음 완료!';
@@ -657,6 +697,7 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
+                    // 파일 이름을 녹음 시작 시의 곡 정보로 설정합니다.
                     a.download = `나의노래방-${songForRecording.title.trim()} - ${songForRecording.artist.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
