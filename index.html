@@ -359,6 +359,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         // --- 전역 변수 ---
+        // audioStream과 audioContext는 노래방 세션 동안 재사용됩니다.
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0, currentSongData = null;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
@@ -457,54 +458,76 @@
         // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // '중단' 버튼을 눌러 수동으로 노래를 멈춘 경우에는 stopSinging() 함수가 모든 것을 처리합니다.
-                // 따라서 이 핸들러는 아무것도 하지 않고 즉시 종료하여 충돌을 방지합니다.
-                if (isStoppingManually) {
-                    return;
-                }
+                if (isStoppingManually) return; // 수동 중지는 stopSinging에서 처리
 
-                // 아래 코드는 노래가 수동 중단이 아닌, 정상적으로 끝났을 때만 실행됩니다.
+                // 노래가 자연스럽게 끝났을 때: 비파괴적으로 정리
                 if (isSinging) {
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        // isStoppingManually가 false이므로 onstop 핸들러가 파일을 저장함
                         mediaRecorder.stop();
                     }
-                    cleanupAudioResources();
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
                     disableNoSleep();
+                    pitch = null;
+                    mediaRecorder = null;
+                    isSinging = false;
                 }
 
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
-                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
                     }
                     const nextSong = currentPlaylist[currentPlaylistIndex];
                     prepareKaraoke(nextSong, true);
                 } else {
-                    // 플레이리스트 모드가 아닐 때 (한 곡 재생 모드)
-                    // 노래가 끝나면 플레이어를 중지하고 0초로 되돌려 다시 시작할 수 있게 합니다.
                     if (player) {
                         player.stopVideo();
                     }
+                    // 현재 곡을 다시 시작할 수 있도록 버튼 활성화
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
                 }
             }
         }
 
         // --- 노래방 핵심 로직 ---
 
-        /** 노래방 화면으로 전환하고 노래를 준비합니다. */
+        /** 노래방 화면으로 전환하고 노래를 준비합니다. (수정됨: 오디오 자원 재사용 로직 추가) */
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
             
-            currentSongData = songData; // 현재 곡 정보 저장
+            currentSongData = songData;
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             headphoneGuide.style.display = 'flex';
             
-            await cleanupAudioResources();
+            // --- 오디오 자원 재사용 로직 ---
+            try {
+                // audioStream이 없거나, 트랙이 종료된 상태라면 새로 요청
+                if (!audioStream || audioStream.getAudioTracks().every(track => track.readyState === 'ended')) {
+                    const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+                    audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+                }
+                // audioContext가 없거나, 닫힌 상태라면 새로 생성
+                if (!audioContext || audioContext.state === 'closed') {
+                    audioContext = new AudioContext();
+                }
+                micErrorMessage.style.display = 'none';
+            } catch (err) {
+                console.error("마이크 초기화 실패:", err);
+                micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
+                micErrorMessage.style.display = 'block';
+                isPreparing = false;
+                return; // 마이크 없이는 진행 불가
+            }
+            
             resetState();
             
             isPlaylistMode = isPlaylist;
@@ -521,17 +544,12 @@
             isPreparing = false;
         }
 
-        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
+        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. (수정됨: 자원 재사용) */
         async function startSinging() {
-            if (isPreparing || isSinging || !player) return;
+            if (isPreparing || isSinging || !player || !audioStream || !audioContext) return;
 
             try {
-                const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
-                audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
                 isSinging = true;
-                micErrorMessage.style.display = 'none';
-                resetState();
                 headphoneGuide.style.display = 'none';
                 
                 const resultArea = document.getElementById('resultArea');
@@ -540,7 +558,7 @@
                 document.getElementById('recordedAudio').style.display = 'none';
                 document.getElementById('downloadBtn').style.display = 'none';
 
-                audioContext = new AudioContext();
+                // 기존에 생성된 audioContext와 audioStream을 재사용
                 pitch = await new Promise((resolve, reject) => {
                     ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, audioStream, (err, model) => {
                         if (err) return reject(err);
@@ -548,7 +566,6 @@
                     });
                 });
                 mediaRecorder = new MediaRecorder(audioStream);
-                // 녹음 시작 시 현재 곡 정보를 넘겨줍니다.
                 setupMediaRecorder(currentSongData); 
 
                 player.playVideo();
@@ -560,39 +577,46 @@
                 stopBtn.disabled = false;
 
             } catch (err) {
-                console.error("오디오 시작 실패:", err);
-                micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
-                micErrorMessage.style.display = 'block';
+                console.error("노래 시작 실패:", err);
                 isSinging = false;
             }
         }
 
-        /** '중단' 버튼: 노래와 모든 관련 리소스를 중지하고 정리합니다. (수정됨) */
+        /** '중단' 버튼: 노래를 중지하지만 오디오 자원은 파괴하지 않습니다. (수정됨: 비파괴적 중단) */
         async function stopSinging() {
             if (!isSinging) return;
             isStoppingManually = true;
 
-            // 1. 영상 재생을 중지합니다.
             if (player) {
                 player.stopVideo();
             }
-            
-            // 2. 모든 오디오 관련 리소스를 비동기적으로 정리하고 기다립니다.
-            await cleanupAudioResources();
 
-            // 3. 화면 꺼짐 방지를 해제합니다.
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop(); // onstop 핸들러가 isStoppingManually 플래그를 확인
+            }
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
             disableNoSleep();
 
-            // 4. 모든 정리가 끝난 후, UI를 다시 시작할 수 있도록 재설정합니다.
+            // 매번 새로 생성되는 객체들만 초기화
+            pitch = null;
+            mediaRecorder = null;
+            isSinging = false;
+
+            // UI 재설정
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
 
 
-        /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
+        /** '선곡' 버튼: 모든 리소스를 해제(파괴)하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
             if (player) player.stopVideo();
-            await cleanupAudioResources();
+            await cleanupAudioResources(); // 모든 오디오 자원을 완전히 파괴
             
             isPlaylistMode = false;
             currentSongData = null;
@@ -603,31 +627,26 @@
             switchView('search');
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제합니다. (수정됨) */
+        /** 모든 오디오 관련 리소스를 안전하게 해제(파괴)합니다. */
         async function cleanupAudioResources() {
-            // 시각화 애니메이션을 중지합니다.
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
             
-            // 녹음기(MediaRecorder)를 중지합니다.
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
             
-            // 마이크 스트림의 모든 트랙을 중지하여 하드웨어를 우선적으로 해제합니다.
+            // '선곡' 등 노래방 기능을 완전히 나갈 때만 스트림과 컨텍스트를 파괴
             if (audioStream) {
                 audioStream.getTracks().forEach(track => track.stop());
             }
             
-            // 오디오 컨텍스트를 닫습니다.
             if (audioContext && audioContext.state !== 'closed') {
                 await audioContext.close();
             }
             
-            // 모든 관련 전역 변수를 null로 설정하여 완전히 초기화합니다.
-            // 이렇게 하면 다음 '시작' 시에 모든 것을 새로 생성하게 됩니다.
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
