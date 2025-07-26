@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>나의 노래방</title>
-    <script src="https://unpkg.com/nosleep.js/dist/NoSleep.min.js"></script>
+    <script src="https://unpkg.com/nosleep.js@0.12.0/dist/NoSleep.min.js"></script>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <style>
-        /* CSS는 변경 사항 없음 */
+        /* 전체 페이지 스타일 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             text-align: center;
@@ -18,6 +21,8 @@
             overflow-y: auto;
         }
         h2 { margin-top: 0; }
+
+        /* --- 1. 검색 화면 스타일 --- */
         #search-view {
             max-width: 700px;
             margin: 40px auto;
@@ -27,12 +32,14 @@
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         .title-wrapper {
             display: flex;
             justify-content: center;
             align-items: center;
             margin-bottom: 30px;
         }
+        
         .title-wrapper h2 {
             font-size: 2.8em;
             font-weight: 700;
@@ -40,21 +47,25 @@
             margin: 0 20px;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5);
         }
+        
         .decoration-container {
             width: 100px;
             height: 60px;
             position: relative;
         }
+
         .star, .balloon {
             position: absolute;
             animation: float 4s ease-in-out infinite;
         }
+
         .star {
             width: 10px;
             height: 10px;
             background-color: yellow;
             clip-path: polygon(50% 0%, 61.8% 38.2%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 75%, 19.1% 100%, 30.9% 61.8%, 0% 38.2%, 38.2% 38.2%);
         }
+
         .balloon {
             width: 12px;
             height: 16px;
@@ -62,11 +73,13 @@
             border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
             transform: rotate(-15deg);
         }
+
         @keyframes float {
             0% { transform: translateY(0px); opacity: 0.9; }
             50% { transform: translateY(-10px) scale(1.1); opacity: 1; }
             100% { transform: translateY(0px); opacity: 0.9; }
         }
+
         .search-box {
             display: flex;
             margin-bottom: 20px;
@@ -74,6 +87,7 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             overflow: hidden;
         }
+
         #search-input {
             flex-grow: 1;
             padding: 10px 25px;
@@ -83,6 +97,7 @@
             color: #333;
             background: #f0f0f0;
         }
+
         #search-button {
             padding: 10px 30px;
             font-size: 16px;
@@ -93,6 +108,7 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
+        
         .view-toggle-buttons {
             display: flex;
             gap: 10px;
@@ -118,13 +134,15 @@
             border-color: #ffc107;
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
         }
+        
         #show-playlist-btn .playlist-icon {
-            color: #28a745;
+            color: #28a745; /* 초록색 음표 */
             font-style: normal;
         }
         .view-toggle-buttons button.active .playlist-icon {
-            color: #212529;
+            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
         }
+
         #search-results-container {
             min-height: 150px;
             border-radius: 10px;
@@ -132,6 +150,7 @@
             background: rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         #search-results {
             list-style: none;
             padding: 0;
@@ -139,6 +158,7 @@
             max-height: calc(100vh - 510px);
             overflow-y: auto;
         }
+        
         .result-item {
             display: flex;
             justify-content: space-between;
@@ -177,6 +197,7 @@
         .playlist-move-btn:hover {
             color: #ffc107;
         }
+
         .favorite-btn:hover, .playlist-add-btn:hover, .playlist-remove-btn:hover {
             transform: scale(1.2);
         }
@@ -186,22 +207,27 @@
         .playlist-add-btn { color: #1DB954; }
         .playlist-add-btn.added { color: #28a745; font-weight: bold; }
         .playlist-remove-btn { color: #F44336; }
+
         .result-item:last-child {
             border-bottom: none;
         }
+
         .result-item:hover {
             background: linear-gradient(90deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0));
         }
+
         .result-item .title {
             font-size: 1.1em;
             font-weight: bold;
             margin-bottom: 4px;
             color: #ffffff;
         }
+
         .result-item .artist {
             font-size: 0.9em;
             color: #bdc3c7;
         }
+
         #loadMoreBtn, #start-playlist-btn {
             margin-top: 25px;
             padding: 12px 30px;
@@ -215,15 +241,18 @@
             transition: background-color 0.3s ease, transform 0.2s ease;
             box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
         }
+
         #loadMoreBtn:hover:not(:disabled), #start-playlist-btn:hover:not(:disabled) {
             background-color: #e0a800;
             transform: scale(1.05);
         }
+
         #loadMoreBtn:disabled, #start-playlist-btn:disabled {
             background-color: #6c757d;
             cursor: not-allowed;
             opacity: 0.6;
         }
+
         #visualizer { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
         #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
         #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
@@ -237,12 +266,14 @@
         #backBtn { background-color: #adb5bd; color: #212529; }
         #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
+        
         #lyrics-zoom-guide { color: #e0e0e0; font-size: 14px; margin: 15px 0; opacity: 0.8; }
         #headphone-guide { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 15px; margin: 20px auto; background-color: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; max-width: 90%; }
         #headphone-guide .guide-icon { font-size: 2em; }
         #headphone-guide p { margin: 0; font-size: 14px; line-height: 1.5; color: #f0f0f0; text-align: left; }
         #downloadBtn { background-color: #007bff; margin-left: 10px; }
         #downloadBtn:hover { background-color: #0056b3; }
+        
         @media (max-width: 600px) {
             #search-view { margin-top: 20px; padding: 20px; }
             .title-wrapper h2 { font-size: 2.1em; margin: 0 10px; }
@@ -272,6 +303,7 @@
               <button id="search-button">검색</button>
           </div>
       </header>
+
       <div class="view-toggle-buttons">
           <button id="show-search-btn" class="active">전체 검색</button>
           <button id="show-favorites-btn">⭐ 즐겨찾기</button>
@@ -324,7 +356,7 @@
         </footer>
       </div>
     </div>
-    
+
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
@@ -332,10 +364,11 @@
     <script>
         // --- 전역 변수 ---
         let pitch, audioStream, mediaRecorder, player, canvas, canvasCtx, animationFrameId, audioContext;
-        let noSleep; // [수정 2] NoSleep.js 객체를 저장할 변수
         let recordedChunks = [], currentPlaylist = [], currentPlaylistIndex = 0, currentSongData = null;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
+        let noSleep = new NoSleep(); // NoSleep 인스턴스 생성
+        let wakeLock = null; // 웨이크락 객체
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -344,9 +377,6 @@
 
         // --- 초기화 로직 ---
         window.onload = () => {
-            // [수정 2] NoSleep 객체 초기화
-            noSleep = new NoSleep();
-
             // DOM 요소 할당
             searchView = document.getElementById('search-view');
             karaokeView = document.getElementById('karaoke-view');
@@ -400,7 +430,10 @@
 
             backBtn.onclick = returnToSearchView;
             stopBtn.onclick = stopSinging;
-            startBtn.onclick = startSinging;
+            startBtn.onclick = () => {
+                alert("노래 재생 중에는 화면이 꺼지지 않도록 설정됩니다. 배터리 소모가 증가할 수 있습니다.");
+                startSinging();
+            };
 
             document.getElementById('power-guide').addEventListener('click', () => {
                 alert(
@@ -433,22 +466,27 @@
         // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
+                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
                 if (isSinging) {
                     isStoppingManually = false;
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
                     cleanupAudioResources();
+                    disableNoSleep();
                 }
 
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
+                    // 마지막 곡이 끝나면 첫 곡으로 돌아갑니다.
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
                     }
                     const nextSong = currentPlaylist[currentPlaylistIndex];
                     prepareKaraoke(nextSong, true);
                 } else {
+                    // 플레이리스트 모드가 아닐 때 (한 곡 재생 모드)
+                    // 노래가 끝나면 플레이어를 중지하고 0초로 되돌려 다시 시작할 수 있게 합니다.
                     if (player) {
                         player.stopVideo();
                     }
@@ -463,7 +501,7 @@
             if (isPreparing) return;
             isPreparing = true;
             
-            currentSongData = songData;
+            currentSongData = songData; // 현재 곡 정보 저장
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
@@ -485,6 +523,10 @@
             startBtn.disabled = false;
             stopBtn.disabled = true;
             isPreparing = false;
+
+            // 화면이 꺼지지 않도록 사전 준비
+            document.addEventListener('click', enableNoSleep, false);
+            document.addEventListener('touchstart', enableNoSleep, false);
         }
 
         /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
@@ -492,8 +534,23 @@
             if (isPreparing || isSinging || !player) return;
 
             try {
-                // [수정 2] NoSleep.js 활성화 (사용자 클릭 이벤트 내에서 실행)
-                noSleep.enable();
+                // 웨이크락 요청 (지원되는 브라우저에서)
+                if ('wakeLock' in navigator) {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        wakeLock.addEventListener('release', () => {
+                            console.log('Screen Wake Lock was released');
+                        });
+                        console.log('Screen Wake Lock is active');
+                    } catch (err) {
+                        console.error(`${err.name}, ${err.message}`);
+                        // 대체 방법으로 NoSleep.js에 의존
+                        noSleep.enable();
+                    }
+                } else {
+                    // Wake Lock을 지원하지 않는 브라우저
+                    noSleep.enable();
+                }
 
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -517,11 +574,13 @@
                     });
                 });
                 mediaRecorder = new MediaRecorder(audioStream);
+                // 녹음 시작 시 현재 곡 정보를 넘겨줍니다.
                 setupMediaRecorder(currentSongData); 
 
                 player.playVideo();
                 mediaRecorder.start();
                 getPitch();
+                enableNoSleep();
                 
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
@@ -531,7 +590,6 @@
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
-                noSleep.disable(); // [수정 2] 실패 시에도 비활성화
             }
         }
 
@@ -540,26 +598,56 @@
             if (!isSinging) return;
             isStoppingManually = true;
 
+            // 녹음 중지
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
+                mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
             }
             
+            // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
             if (player) {
                 player.stopVideo();
             }
             
+            // 오디오 리소스 정리
             await cleanupAudioResources();
+            
+            // 웨이크락 해제
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            
+            // NoSleep 비활성화
+            noSleep.disable();
+            disableNoSleep();
+
+            // 이벤트 리스너 제거
+            document.removeEventListener('click', enableNoSleep, false);
+            document.removeEventListener('touchstart', enableNoSleep, false);
 
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
-
 
         /** '선곡하기' 버튼: 모든 리소스를 해제하고 검색 화면으로 돌아갑니다. */
         async function returnToSearchView() {
             if (player) player.stopVideo();
             await cleanupAudioResources();
             
+            // 웨이크락 해제
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            
+            // NoSleep 비활성화
+            noSleep.disable();
+            disableNoSleep();
+
+            // 이벤트 리스너 제거
+            document.removeEventListener('click', enableNoSleep, false);
+            document.removeEventListener('touchstart', enableNoSleep, false);
+
             isPlaylistMode = false;
             currentSongData = null;
             
@@ -571,13 +659,11 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            // [수정 2] NoSleep.js 비활성화
-            noSleep.disable();
-
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+            // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
@@ -596,6 +682,7 @@
 
             isSinging = false;
             
+            // UI 업데이트
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
@@ -608,11 +695,12 @@
             };
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
-                    resetState();
+                    resetState(); // 수동 중단 시 UI 초기화
                     isStoppingManually = false;
                     return; 
                 }
                 
+                // 녹음 정상 종료 시 파일 저장
                 document.getElementById('resultArea').style.display = 'block';
                 const resultTitle = document.querySelector('#resultArea h4');
                 resultTitle.textContent = '녹음 완료!';
@@ -626,6 +714,7 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
+                    // 파일 이름을 녹음 시작 시의 곡 정보로 설정합니다.
                     a.download = `나의노래방-${songForRecording.title.trim()} - ${songForRecording.artist.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
@@ -898,9 +987,9 @@
             currentPlaylistIndex = 0;
             prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
         }
-        
-        // [수정 2] enableNoSleep, disableNoSleep 함수는 NoSleep.js가 처리하므로 삭제
-        
+        const enableNoSleep = () => noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
+        const disableNoSleep = () => noSleepVideo.pause();
+
         function drawVisualizer(frequency) {
             if (!canvasCtx) return;
             canvasCtx.fillStyle = 'rgba(18, 18, 18, 0.2)';
