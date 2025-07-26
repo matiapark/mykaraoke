@@ -399,6 +399,9 @@
                 canvasCtx = canvas.getContext('2d');
             }
             
+            // [수정] Wake Lock 재요청을 위한 이벤트 리스너 추가
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
             // 이벤트 리스너 할당
             showSearchBtn.addEventListener('click', () => switchView('search'));
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
@@ -521,7 +524,7 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
             
-            // [수정] Wake Lock API 호출
+            // Wake Lock 활성화
             await requestWakeLock();
 
             try {
@@ -570,8 +573,8 @@
         async function stopSinging() {
             if (!isSinging) return;
             isStoppingManually = true;
-            
-            // [수정] Wake Lock API 해제
+
+            // Wake Lock 해제
             await releaseWakeLock();
 
             // 녹음 중지
@@ -610,7 +613,7 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            // [수정] Wake Lock API 해제
+            // Wake Lock 해제
             await releaseWakeLock();
 
             if (animationFrameId) {
@@ -646,14 +649,14 @@
         // [추가] Wake Lock API 관련 함수
         /** Screen Wake Lock을 요청하는 함수 */
         async function requestWakeLock() {
-            // Wake Lock API가 지원되는 브라우저인지 확인
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
                     console.log('Wake Lock이 활성화되었습니다.');
-                    // Wake Lock이 (예: 탭이 비활성화될 때) 해제되면 알림
                     wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock이 해제되었습니다.');
+                        // 시스템에 의해 Wake Lock이 해제되면, wakeLock 변수를 null로 설정
+                        console.log('Wake Lock이 시스템에 의해 해제되었습니다.');
+                        wakeLock = null; 
                     });
                 } catch (err) {
                     console.error(`${err.name}, ${err.message}`);
@@ -670,6 +673,14 @@
                 wakeLock = null;
             }
         }
+        
+        /** [추가] 페이지가 다시 활성화될 때 Wake Lock을 재요청하는 함수 */
+        const handleVisibilityChange = async () => {
+            // isSinging 상태이고, wakeLock이 현재 비활성화 상태이며, 페이지가 보일 때
+            if (isSinging && wakeLock === null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        };
 
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
