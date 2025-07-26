@@ -465,9 +465,9 @@
                         mediaRecorder.stop();
                     }
                     if (animationFrameId) {
-                        cancelAnimationFrame(animationFrameId);
-                        animationFrameId = null;
-                    }
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
                     
                     if (audioContext && audioContext.state !== 'closed') {
                         audioContext.close();
