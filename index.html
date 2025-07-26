@@ -67,12 +67,19 @@ function createDecorations(containerSelector, starCount, balloonCount) {
         }
         
         .decoration-container {
+    position: relative;
+    overflow: visible;
+    
             width: 100px;
             height: 60px;
             position: relative;
         }
 
         .star, .balloon {
+    display: block;
+    z-index: 5;
+    opacity: 0.9;
+    
             position: absolute;
             animation: float 4s ease-in-out infinite;
         }
@@ -295,7 +302,10 @@ function createDecorations(containerSelector, starCount, balloonCount) {
         @media (max-width: 600px) {
             #search-view { margin-top: 20px; padding: 20px; }
             .title-wrapper h2 { font-size: 2.1em; margin: 0 10px; }
-            .decoration-container { width: 50px; }
+            .decoration-container {
+    position: relative;
+    overflow: visible;
+     width: 50px; }
             #search-input, #search-button, .view-toggle-buttons button { padding: 10px 15px; font-size: 12px; }
             .result-item { padding: 10px 15px; }
             .result-item .title { font-size: 1em; }
