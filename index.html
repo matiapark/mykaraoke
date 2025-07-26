@@ -454,12 +454,17 @@
             });
         }
         
-        // --- 상태 관리 ---
+        // --- 상태 관리 (수정된 부분) ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
-                // 노래가 정상적으로 종료되면 녹음을 중지하고 파일을 저장합니다.
+                // '중단' 버튼을 눌러 수동으로 노래를 멈춘 경우에는 stopSinging() 함수가 모든 것을 처리합니다.
+                // 따라서 이 핸들러는 아무것도 하지 않고 즉시 종료하여 충돌을 방지합니다.
+                if (isStoppingManually) {
+                    return;
+                }
+
+                // 아래 코드는 노래가 수동 중단이 아닌, 정상적으로 끝났을 때만 실행됩니다.
                 if (isSinging) {
-                    isStoppingManually = false;
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
