@@ -496,7 +496,7 @@
 
         // --- 노래방 핵심 로직 ---
 
-        /** 노래방 화면으로 전환하고 노래를 준비합니다. (수정됨: 오디오 자원 재사용 로직 추가) */
+        /** 노래방 화면으로 전환하고 노래를 준비합니다. */
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -544,7 +544,7 @@
             isPreparing = false;
         }
 
-        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. (수정됨: 자원 재사용) */
+        /** '시작' 버튼: 기존 오디오 자원을 재사용하여 노래와 녹음을 시작합니다. */
         async function startSinging() {
             if (isPreparing || isSinging || !player || !audioStream || !audioContext) return;
 
@@ -582,7 +582,7 @@
             }
         }
 
-        /** '중단' 버튼: 노래를 중지하지만 오디오 자원은 파괴하지 않습니다. (수정됨: 비파괴적 중단) */
+        /** '중단' 버튼: 노래를 중지하지만 오디오 자원은 파괴하지 않습니다. (수정됨: 메모리 누수 방지) */
         async function stopSinging() {
             if (!isSinging) return;
             isStoppingManually = true;
@@ -592,13 +592,17 @@
             }
 
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop(); // onstop 핸들러가 isStoppingManually 플래그를 확인
+                mediaRecorder.stop();
             }
             
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
+
+            // **[중요 수정]** 녹음된 데이터가 쌓여 mediaRecorder.stop()을 느리게 만드는 것을 방지하기 위해
+            // 청크 배열을 즉시 동기적으로 비워줍니다.
+            recordedChunks = [];
 
             disableNoSleep();
 
