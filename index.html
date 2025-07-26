@@ -399,7 +399,7 @@
                 canvasCtx = canvas.getContext('2d');
             }
             
-            // [수정] Wake Lock 재요청을 위한 이벤트 리스너 추가
+            // Wake Lock 재요청을 위한 이벤트 리스너 추가
             document.addEventListener('visibilitychange', handleVisibilityChange);
             
             // 이벤트 리스너 할당
@@ -520,17 +520,18 @@
             isPreparing = false;
         }
 
-        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. */
+        /** '시작' 버튼: 마이크 권한을 요청하고 노래와 녹음을 시작합니다. (수정됨) */
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
-            
-            // Wake Lock 활성화
-            await requestWakeLock();
 
             try {
+                // 1. 마이크 권한을 먼저 요청합니다.
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
+                // 2. 모든 설정이 완료된 후, 재생 직전에 Wake Lock을 요청합니다.
+                await requestWakeLock();
+
                 isSinging = true;
                 micErrorMessage.style.display = 'none';
                 resetState();
@@ -550,9 +551,9 @@
                     });
                 });
                 mediaRecorder = new MediaRecorder(audioStream);
-                // 녹음 시작 시 현재 곡 정보를 넘겨줍니다.
                 setupMediaRecorder(currentSongData); 
 
+                // 3. 모든 준비가 끝나면 재생을 시작합니다.
                 player.playVideo();
                 mediaRecorder.start();
                 getPitch();
@@ -566,6 +567,7 @@
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
+                await releaseWakeLock(); // 실패 시에도 Wake Lock 해제
             }
         }
 
@@ -573,13 +575,12 @@
         async function stopSinging() {
             if (!isSinging) return;
             isStoppingManually = true;
-
-            // Wake Lock 해제
+            
             await releaseWakeLock();
 
             // 녹음 중지
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop(); // onstop 이벤트가 호출되지만, isStoppingManually 플래그 때문에 파일 저장은 안됨
+                mediaRecorder.stop();
             }
             
             // 재생 중인 노래를 완전히 중지하여 처음으로 되돌립니다.
@@ -613,14 +614,12 @@
 
         /** 모든 오디오 관련 리소스를 안전하게 해제합니다. */
         async function cleanupAudioResources() {
-            // Wake Lock 해제
             await releaseWakeLock();
 
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
             }
-            // '중단' 시에는 이미 mediaRecorder가 중지되었을 수 있으므로 상태 확인
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
@@ -639,14 +638,13 @@
 
             isSinging = false;
             
-            // UI 업데이트
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
         
         // --- 헬퍼 함수 ---
 
-        // [추가] Wake Lock API 관련 함수
+        // Wake Lock API 관련 함수
         /** Screen Wake Lock을 요청하는 함수 */
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
@@ -654,7 +652,6 @@
                     wakeLock = await navigator.wakeLock.request('screen');
                     console.log('Wake Lock이 활성화되었습니다.');
                     wakeLock.addEventListener('release', () => {
-                        // 시스템에 의해 Wake Lock이 해제되면, wakeLock 변수를 null로 설정
                         console.log('Wake Lock이 시스템에 의해 해제되었습니다.');
                         wakeLock = null; 
                     });
@@ -674,9 +671,8 @@
             }
         }
         
-        /** [추가] 페이지가 다시 활성화될 때 Wake Lock을 재요청하는 함수 */
+        /** 페이지가 다시 활성화될 때 Wake Lock을 재요청하는 함수 */
         const handleVisibilityChange = async () => {
-            // isSinging 상태이고, wakeLock이 현재 비활성화 상태이며, 페이지가 보일 때
             if (isSinging && wakeLock === null && document.visibilityState === 'visible') {
                 await requestWakeLock();
             }
@@ -689,12 +685,11 @@
             };
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
-                    resetState(); // 수동 중단 시 UI 초기화
+                    resetState(); 
                     isStoppingManually = false;
                     return; 
                 }
                 
-                // 녹음 정상 종료 시 파일 저장
                 document.getElementById('resultArea').style.display = 'block';
                 const resultTitle = document.querySelector('#resultArea h4');
                 resultTitle.textContent = '녹음 완료!';
@@ -708,7 +703,6 @@
                 downloadBtn.onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
-                    // 파일 이름을 녹음 시작 시의 곡 정보로 설정합니다.
                     a.download = `나의노래방-${songForRecording.title.trim()} - ${songForRecording.artist.trim()}.webm`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
