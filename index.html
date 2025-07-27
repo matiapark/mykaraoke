@@ -361,7 +361,7 @@
         <div id="lyrics-zoom-guide">
             💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
         </div>
-        <div id="headphone-guide">
+        <div id="headphone-guide" style="display: none;">
             <span class="guide-icon">🎧</span>
             <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
         </div>
@@ -384,7 +384,7 @@
       </div>
     </div>
 
-    <div id="keep-awake-alert">화면이 꺼지지 않도록 주기적으로 터치해주세요!</div>
+    <div id="keep-awake-alert">화면이 어두워지면 (슬립모드 진입) 화면이 꺼지지 않도록 주기적으로 터치해주세요!</div>
 
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
     <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
@@ -400,6 +400,7 @@
         let wakeLock = null; // 웨이크락 객체
         let noSleepTimeout, lastInteractionTime = 0;
         let stopSilence = () => {}; // 오디오 유지 함수 정리용
+        let isFirstSongInPlaylist = true; // 플레이리스트 첫 곡 여부
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -462,10 +463,7 @@
 
             backBtn.onclick = returnToSearchView;
             stopBtn.onclick = stopSinging;
-            startBtn.onclick = () => {
-                alert("노래 재생 중에는 다음 사항을 확인해주세요:\n\n1. 휴대폰 설정에서 '자동 잠금' 시간을 최대한 길게 설정해주세요.\n2. 앱 사용 중에는 다른 앱으로 전환하지 마세요.\n3. 배터리 절약 모드를 해제해주세요.\n4. 화면이 어두워지면 터치하여 계속 활성 상태를 유지해주세요.");
-                startSinging();
-            };
+            startBtn.onclick = startSinging;
 
             document.getElementById('power-guide').addEventListener('click', () => {
                 alert(
@@ -544,6 +542,7 @@
                         currentPlaylistIndex = 0;
                     }
                     const nextSong = currentPlaylist[currentPlaylistIndex];
+                    isFirstSongInPlaylist = false; // 첫 곡이 아님
                     prepareKaraoke(nextSong, true);
                 } else {
                     // 플레이리스트 모드가 아닐 때 (한 곡 재생 모드)
@@ -567,7 +566,9 @@
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
-            headphoneGuide.style.display = 'flex';
+            
+            // 플레이리스트 모드이고 첫 곡이 아니면 헤드폰 가이드 숨기기
+            headphoneGuide.style.display = (isPlaylistMode && !isFirstSongInPlaylist) ? 'none' : 'flex';
             
             await cleanupAudioResources();
             resetState();
@@ -575,6 +576,7 @@
             isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
                 addRecentSong(songData);
+                isFirstSongInPlaylist = true; // 플레이리스트가 아닐 때는 항상 첫 곡으로 간주
             }
             
             if (player) {
@@ -735,6 +737,7 @@
             
             isPlaylistMode = false;
             currentSongData = null;
+            isFirstSongInPlaylist = true; // 플레이리스트 초기화
             
             karaokeView.style.display = 'none';
             searchView.style.display = 'block';
@@ -1092,6 +1095,7 @@
                 return;
             }
             currentPlaylistIndex = 0;
+            isFirstSongInPlaylist = true; // 플레이리스트 첫 곡으로 설정
             prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
         }
         const enableNoSleep = () => noSleepVideo.play().catch(e => console.error("NoSleep 비디오 재생 실패:", e));
