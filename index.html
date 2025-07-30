@@ -401,8 +401,8 @@
     <script>
         // --- 전역 변수 ---
         let pitch, mediaRecorder, player, audioContext;
-        let micSourceNode, micGainNode; // ## ALGORITHM: 가상 믹서(Gain) 노드 추가
-        let rawMicStream; // 원본 마이크 스트림 저장
+        let micSourceNode, micGainNode, rawMicStream; // 오디오 그래프 노드 및 원본 스트림
+        let animationFrameId;
         let recordedChunks = [], currentSongData = null, currentPlaylist = [], currentPlaylistIndex = 0;
         let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
         let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
@@ -435,6 +435,12 @@
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
             keepAwakeAlert = document.getElementById('keep-awake-alert');
+            
+            const visualizerCanvas = document.getElementById('visualizer');
+            if (visualizerCanvas) {
+                visualizerCanvas.width = window.innerWidth;
+                visualizerCanvas.height = window.innerHeight;
+            }
 
             showSearchBtn.addEventListener('click', () => switchView('search'));
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
@@ -447,13 +453,16 @@
             backBtn.onclick = returnToSearchView;
             stopBtn.onclick = stopSinging;
             startBtn.onclick = startSinging;
+            
+            createDecorations('.left', 5, 3);
+            createDecorations('.right', 5, 3);
         };
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
                 height: '360', width: '640',
                 playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3 },
-                events: { 'onReady': () => {}, 'onStateChange': onPlayerStateChange }
+                events: { 'onReady': () => console.log("YouTube Player is ready."), 'onStateChange': onPlayerStateChange }
             });
         }
         
@@ -468,7 +477,9 @@
         }
 
         async function prepareKaraoke(songData, isPlaylist = false) {
+            if (isPreparing) return;
             isPreparing = true;
+            
             currentSongData = songData;
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             searchView.style.display = 'none';
@@ -477,7 +488,7 @@
             await cleanupAudioResources();
             resetState();
             
-            player.cueVideoById(songData.videoId);
+            if (player) player.cueVideoById(songData.videoId);
             startBtn.disabled = false;
             stopBtn.disabled = true;
             isPreparing = false;
@@ -530,20 +541,19 @@
                 micErrorMessage.textContent = "마이크 사용 권한이 필요합니다.";
                 isSinging = false;
                 startBtn.disabled = false;
+                cleanupAudioResources();
             }
         }
 
-        /** '중단' 버튼: 노래와 모든 관련 리소스를 '부드럽게' 중지합니다. */
         function stopSinging() {
             if (!isSinging) return;
             
-            isStoppingManually = true; // 수동 중단 플래그 설정
+            isStoppingManually = true;
             isSinging = false;
             
             startBtn.disabled = true;
             stopBtn.disabled = true;
 
-            // ## ALGORITHM: 페이드 아웃 로직 ##
             if (micGainNode && audioContext && audioContext.state === 'running') {
                 // 1. 볼륨을 0.15초에 걸쳐 0으로 줄임 (페이드 아웃)
                 micGainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.15);
@@ -552,14 +562,12 @@
                 setTimeout(() => {
                     if (player && typeof player.stopVideo === 'function') player.stopVideo();
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop(); // .onstop 이벤트에서 최종 cleanup이 실행됨
+                        mediaRecorder.stop();
                     } else {
-                        // 녹음기가 실행되지 않은 경우에도 cleanup 호출
                         cleanupAudioResources().then(() => startBtn.disabled = false);
                     }
-                }, 200); // 페이드아웃 시간보다 약간 길게 설정
+                }, 200);
             } else {
-                // 오디오 컨텍스트가 없는 예외적인 경우, 바로 정리
                 if (player && typeof player.stopVideo === 'function') player.stopVideo();
                 cleanupAudioResources().then(() => startBtn.disabled = false);
             }
@@ -573,9 +581,7 @@
             mediaRecorder.onstop = () => {
                 const wasManualStop = isStoppingManually;
                 
-                // 리소스 정리 먼저 호출
                 cleanupAudioResources().then(() => {
-                    // 수동 중단이 아니었고, 녹음된 데이터가 있을 때만 파일 처리
                     if (!wasManualStop && recordedChunks.length > 0) {
                         const resultArea = document.getElementById('resultArea');
                         resultArea.style.display = 'block';
@@ -591,18 +597,22 @@
                         downloadBtn.onclick = () => {
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = `나의노래방-${songForRecording.title.trim()}.webm`;
+                            a.download = `나의노래방-${songForRecording.title.trim()}}.webm`;
                             a.click();
                         };
                     }
-                    recordedChunks = []; // 청크 초기화
-                    startBtn.disabled = false; // 버튼 상태 최종 업데이트
+                    recordedChunks = [];
+                    if (startBtn) startBtn.disabled = false;
                 });
             };
         }
 
         async function cleanupAudioResources() {
-            // 원본 마이크 스트림의 트랙을 중지
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
             if (rawMicStream) {
                 rawMicStream.getTracks().forEach(track => track.stop());
                 rawMicStream = null;
@@ -639,31 +649,263 @@
         }
 
         function getPitch() {
-            if (!pitch || !isSinging) return;
+            if (!pitch || !isSinging) {
+                cancelAnimationFrame(animationFrameId);
+                return;
+            };
             pitch.getPitch((err, frequency) => {
                 if (isSinging) {
-                    // visualizer drawing logic here
-                    requestAnimationFrame(getPitch);
+                    drawVisualizer(frequency || 0);
+                    animationFrameId = requestAnimationFrame(getPitch);
                 }
             });
         }
         
-        // --- 나머지 UI 및 데이터 관리 함수들 ---
-        function switchView(view) { /* ... */ }
-        function startNewSearch() { /* ... */ }
-        async function fetchAndRenderResults() { /* ... */ }
-        function renderSearchResults(results) { /* ... */ }
-        function renderSongList(songs) { /* ... */ }
-        function toggleFavorite(songData, btnElement) { /* ... */ }
-        function addSongToPlaylist(songData, btnElement) { /* ... */ }
-        function removeSongFromPlaylist(videoId) { /* ... */ }
-        function startPlaylist() { /* ... */ }
+        function drawVisualizer(frequency) {
+            const canvas = document.getElementById('visualizer');
+            if (!canvas) return;
+            const canvasCtx = canvas.getContext('2d');
+            canvasCtx.fillStyle = 'rgba(18, 18, 18, 0.2)';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            if (frequency === 0) return;
+
+            const barCount = 60;
+            const barWidth = canvas.width / barCount / 2;
+            const minPitch = 80, maxPitch = 500;
+            let heightRatio = (frequency - minPitch) / (maxPitch - minPitch);
+            heightRatio = Math.max(0, Math.min(1, heightRatio));
+            const hue = (1 - heightRatio) * 240;
+            const centerBarHeight = heightRatio * (canvas.height * 0.8);
+            
+            for (let i = 0; i < barCount; i++) {
+                const distanceFromCenter = Math.abs(i - Math.floor(barCount / 2));
+                const height = Math.max(0, centerBarHeight * (1 - distanceFromCenter / (barCount / 1.8)));
+                if (height < 2) continue;
+                const x = (canvas.width / 2) + (i - barCount / 2) * (barWidth * 1.8);
+                const y = canvas.height - height;
+                canvasCtx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+                canvasCtx.fillRect(x, y, barWidth, height);
+            }
+        }
+        
+        // --- UI 및 데이터 관리 함수들 ---
+        function createDecorations(containerSelector, starCount, balloonCount) {
+            const container = document.querySelector(containerSelector);
+            if (!container) return;
+            const colors = ['#ffc107', '#007bff', '#28a745', '#dc3545', '#17a2b8', '#6610f2'];
+            const createIcon = (type) => {
+                const icon = document.createElement('div');
+                icon.className = type;
+                icon.style.left = `${Math.random() * 90}%`;
+                icon.style.top = `${Math.random() * 80}%`;
+                icon.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                icon.style.animationDelay = `${Math.random() * 4}s`;
+                icon.style.animationDuration = `${2 + Math.random() * 2}s`;
+                container.appendChild(icon);
+            };
+            for (let i = 0; i < starCount; i++) createIcon('star');
+            for (let i = 0; i < balloonCount; i++) createIcon('balloon');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            [showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn].forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`show-${view}-btn`).classList.add('active');
+            
+            document.querySelector('.search-box').style.display = view === 'search' ? 'flex' : 'none';
+            loadMoreBtn.style.display = 'none';
+            playlistControls.style.display = view === 'playlist' ? 'block' : 'none';
+
+            if (view === 'search') { startNewSearch(); } 
+            else if (view === 'favorites') { renderFavorites(); } 
+            else if (view === 'recents') { renderRecents(); }
+            else if (view === 'playlist') { renderPlaylist(); }
+        }
+
+        function startNewSearch() {
+            currentQuery = searchInput.value.trim();
+            currentPage = 1;
+            if (currentQuery) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색 중...</li>';
+                fetchAndRenderResults();
+            } else {
+                searchResultsUl.innerHTML = '';
+            }
+        }
+        
+        async function fetchAndRenderResults() {
+            const queryForThisRequest = currentQuery;
+            if (!queryForThisRequest) return;
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = '불러오는 중...';
+            try {
+                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(queryForThisRequest)}&page=${currentPage}`);
+                if (!response.ok) throw new Error(`서버 오류: ${response.statusText}`);
+                const data = await response.json();
+                if (queryForThisRequest === currentQuery) {
+                    renderSearchResults(data.results);
+                    totalPages = data.totalPages;
+                    const showLoadMore = currentPage < totalPages && currentView === 'search';
+                    loadMoreBtn.style.display = showLoadMore ? 'block' : 'none';
+                    if(showLoadMore) {
+                       loadMoreBtn.disabled = false;
+                       loadMoreBtn.textContent = '더 보기';
+                    }
+                }
+            } catch (error) {
+                if (queryForThisRequest === currentQuery) {
+                    console.error('Search failed:', error);
+                    searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색에 실패했습니다.</li>';
+                }
+            }
+        }
+
+        function renderSearchResults(results) {
+            if (currentPage === 1) searchResultsUl.innerHTML = '';
+            if (results.length === 0 && currentPage === 1) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">검색 결과가 없습니다.</li>';
+                return;
+            }
+            renderSongList(results);
+        }
+
+        function renderSongList(songs) {
+            if(currentView !== 'search' || currentPage === 1) {
+                searchResultsUl.innerHTML = '';
+            }
+            
+            const favorites = getFavorites();
+            const playlist = getPlaylist();
+
+            songs.forEach((song, index) => {
+                const isFavorited = favorites.some(fav => fav.videoId === song.videoId);
+                const isInPlaylist = playlist.some(p => p.videoId === song.videoId);
+                const li = document.createElement('li');
+                li.className = 'result-item';
+                
+                const songInfoDiv = document.createElement('div');
+                songInfoDiv.className = 'song-info';
+                songInfoDiv.innerHTML = `<div class="title">${song.title}</div><div class="artist">${song.artist}</div>`;
+                
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'list-buttons';
+
+                if (currentView === 'playlist') {
+                    const upBtn = document.createElement('button');
+                    upBtn.innerHTML = '▲';
+                    upBtn.className = 'playlist-move-btn';
+                    upBtn.onclick = (e) => { e.stopPropagation(); movePlaylistItem(index, 'up'); };
+                    const downBtn = document.createElement('button');
+                    downBtn.innerHTML = '▼';
+                    downBtn.className = 'playlist-move-btn';
+                    downBtn.onclick = (e) => { e.stopPropagation(); movePlaylistItem(index, 'down'); };
+                    buttonsDiv.appendChild(upBtn);
+                    buttonsDiv.appendChild(downBtn);
+                }
+
+                const playlistBtn = document.createElement('span');
+                if (currentView === 'playlist') {
+                    playlistBtn.className = 'playlist-remove-btn';
+                    playlistBtn.innerHTML = '×';
+                     playlistBtn.onclick = (e) => { e.stopPropagation(); removeSongFromPlaylist(song.videoId); };
+                } else {
+                    playlistBtn.className = `playlist-add-btn ${isInPlaylist ? 'added' : ''}`;
+                    playlistBtn.innerHTML = isInPlaylist ? '✓' : '+';
+                    playlistBtn.onclick = (e) => { e.stopPropagation(); addSongToPlaylist(song, playlistBtn); };
+                }
+
+                const favoriteBtn = document.createElement('span');
+                favoriteBtn.className = `favorite-btn ${isFavorited ? 'favorited' : ''}`;
+                favoriteBtn.innerHTML = isFavorited ? '★' : '☆';
+                favoriteBtn.onclick = (e) => { e.stopPropagation(); toggleFavorite(song, favoriteBtn); };
+
+                buttonsDiv.appendChild(playlistBtn);
+                buttonsDiv.appendChild(favoriteBtn);
+                li.appendChild(songInfoDiv);
+                li.appendChild(buttonsDiv);
+                
+                li.addEventListener('click', (e) => {
+                    if (!e.target.closest('.list-buttons')) {
+                        prepareKaraoke(song);
+                    }
+                });
+                
+                searchResultsUl.appendChild(li);
+            });
+        }
+        
+        function toggleFavorite(songData, btnElement) {
+            let favorites = getFavorites();
+            const existingIndex = favorites.findIndex(fav => fav.videoId === songData.videoId);
+            if (existingIndex > -1) {
+                favorites.splice(existingIndex, 1);
+                btnElement.innerHTML = '☆';
+                btnElement.classList.remove('favorited');
+            } else {
+                favorites.push({ videoId: songData.videoId, title: songData.title, artist: songData.artist });
+                btnElement.innerHTML = '★';
+                btnElement.classList.add('favorited');
+            }
+            saveFavorites(favorites);
+            if (currentView === 'favorites') renderFavorites();
+        }
+
+        function addSongToPlaylist(songData, btnElement) {
+            let playlist = getPlaylist();
+            if (playlist.some(p => p.videoId === songData.videoId)) return;
+            playlist.push(songData);
+            savePlaylist(playlist);
+            btnElement.innerHTML = '✓';
+            btnElement.classList.add('added');
+        }
+
+        function removeSongFromPlaylist(videoId) {
+            let playlist = getPlaylist();
+            playlist = playlist.filter(p => p.videoId !== videoId);
+            savePlaylist(playlist);
+            renderPlaylist();
+        }
+        
+        function renderFavorites() { renderSongList(getFavorites()); }
+        function renderRecents() { renderSongList(getRecents()); }
+        function renderPlaylist() {
+            const playlist = getPlaylist();
+            searchResultsUl.innerHTML = '';
+            if (playlist.length === 0) {
+                searchResultsUl.innerHTML = '<li class="result-item" style="cursor:default; justify-content:center;">플레이리스트가 비어있습니다.</li>';
+                startPlaylistBtn.style.display = 'none';
+                return;
+            }
+            startPlaylistBtn.style.display = 'inline-block';
+            renderSongList(playlist);
+        }
+
+        function startPlaylist() {
+            currentPlaylist = getPlaylist();
+            if (currentPlaylist.length === 0) {
+                alert('플레이리스트에 곡이 없습니다.');
+                return;
+            }
+            currentPlaylistIndex = 0;
+            isPlaylistMode = true;
+            prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
+        }
+        
         const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
         const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
         const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
-        const addRecentSong = (songData) => { /* ... */ };
+        const addRecentSong = (songData) => {
+            if (isPlaylistMode) return;
+            let recents = getRecents();
+            recents = recents.filter(song => song.videoId !== songData.videoId);
+            recents.unshift(songData);
+            if (recents.length > 20) recents = recents.slice(0, 20);
+            localStorage.setItem('karaokeRecents', JSON.stringify(recents));
+        };
         const getPlaylist = () => JSON.parse(localStorage.getItem('karaokePlaylist') || '[]');
         const savePlaylist = (playlist) => localStorage.setItem('karaokePlaylist', JSON.stringify(playlist));
+        const enableNoSleep = () => noSleepVideo.play().catch(e=>console.error(e));
+        const disableNoSleep = () => noSleepVideo.pause();
     </script>
 </body>
 </html>
