@@ -107,7 +107,7 @@
             background: #ffc107;
             color: #212529;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color: 0.3s ease;
         }
         
         .view-toggle-buttons {
@@ -383,7 +383,7 @@
             <button id="backBtn">🔍 선곡</button>
           </div>
           <div id="resultArea" style="display:none;">
-            <h4>녹음 완료!</h4>
+            <h4></h4>
             <audio id="recordedAudio" controls style="width: 100%;"></audio>
             <button id="downloadBtn" style="display: none;">💾 다운로드</button>
           </div>
@@ -468,7 +468,7 @@
             document.getElementById('power-guide').addEventListener('click', () => {
                 alert(
                     "💡 기능 및 유의사항 안내\n\n" +
-                    "1. 배터리 및 슬립모드...\n" + // (내용 동일)
+                    "1. 배터리 및 슬립모드...\n" +
                     "2. 녹음 파일 재생 안내...\n" +
                     "3. 녹음 기능 활용 팁..."
                 );
@@ -516,6 +516,7 @@
                 }
                 if (isPlaylistMode) {
                     currentPlaylistIndex = (currentPlaylistIndex + 1) % currentPlaylist.length;
+                    isFirstSongInPlaylist = false;
                     prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
                 }
             }
@@ -528,19 +529,19 @@
             if (isPreparing) return;
             isPreparing = true;
             
-            // ## ALGORITHM: 노래방 화면 진입 시 오디오 엔진 준비
             initAudioEngine();
 
             currentSongData = songData;
+            isPlaylistMode = isPlaylist;
+            document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
-            document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
-            micErrorMessage.style.display = 'none';
-            headphoneGuide.style.display = (isPlaylistMode && !isFirstSongInPlaylist) ? 'none' : 'flex';
             
+            headphoneGuide.style.display = 'flex'; // 다시 표시
+            
+            await disconnectMic(); // 이전 리소스 정리
             resetState();
             
-            isPlaylistMode = isPlaylist;
             if (!isPlaylistMode) {
                 addRecentSong(songData);
                 isFirstSongInPlaylist = true;
@@ -555,8 +556,8 @@
 
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
-            if (!audioContext || audioContext.state !== 'running') {
-                console.warn("Audio Context is not running. Attempting to resume...");
+            if (!audioContext) initAudioEngine();
+            if (audioContext.state === 'suspended') {
                 await audioContext.resume();
             }
             
@@ -564,6 +565,14 @@
             isStoppingManually = false;
             startBtn.disabled = true;
             stopBtn.disabled = true;
+            
+            // ## UI FIX: 시작 시 안내 문구 숨기고 '녹음 중' 표시
+            headphoneGuide.style.display = 'none';
+            const resultArea = document.getElementById('resultArea');
+            resultArea.style.display = 'block';
+            resultArea.querySelector('h4').textContent = '녹음 중...';
+            document.getElementById('recordedAudio').style.display = 'none';
+            document.getElementById('downloadBtn').style.display = 'none';
 
             try {
                 // ## ALGORITHM: 상시 가동 중인 엔진에 마이크 연결 및 페이드인
@@ -577,9 +586,8 @@
                 micGainNode.connect(destinationNode);
                 const processedStream = destinationNode.stream;
                 
-                // 시작 시 Pop Noise 방지를 위한 페이드인
-                micGainNode.gain.setValueAtTime(0.0001, audioContext.currentTime);
-                micGainNode.gain.exponentialRampToValueAtTime(1, audioContext.currentTime + 0.1);
+                // ## ALGORITHM: 사전 무음 처리 (볼륨 0에서 녹음기 시작)
+                micGainNode.gain.setValueAtTime(0, audioContext.currentTime);
 
                 mediaRecorder = new MediaRecorder(processedStream);
                 setupMediaRecorder(currentSongData);
@@ -589,9 +597,13 @@
                         err ? reject(err) : resolve(model);
                     });
                 });
-
-                player.playVideo();
+                
                 mediaRecorder.start();
+                player.playVideo();
+
+                // ## ALGORITHM: 녹음기 시작 후 페이드인
+                micGainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.1);
+
                 getPitch();
                 enableNoSleep();
                 
@@ -618,11 +630,11 @@
             stopBtn.disabled = true;
 
             if (micGainNode && audioContext && audioContext.state === 'running') {
-                micGainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.15);
+                micGainNode.gain.linearRampToValueAtTime(0.0001, audioContext.currentTime + 0.15);
                 setTimeout(() => {
                     if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop(); // .onstop에서 파일 처리 및 마이크 연결 해제
+                        mediaRecorder.stop();
                     } else {
                         disconnectMic().then(() => startBtn.disabled = false);
                     }
@@ -692,6 +704,9 @@
                         a.download = `나의노래방-${songForRecording.title.trim()} - ${songForRecording.artist.trim()}.webm`;
                         document.body.appendChild(a); a.click(); document.body.removeChild(a);
                     };
+                } else if (wasManualStop) {
+                    // 수동 중단 시 결과 영역 숨김
+                    document.getElementById('resultArea').style.display = 'none';
                 }
                 
                 recordedChunks = [];
