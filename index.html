@@ -10,7 +10,7 @@
     <script src="https://unpkg.com/nosleep.js@0.12.0/dist/NoSleep.min.js"></script>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <style>
-        /* CSS 스타일은 이전과 동일하게 유지됩니다 */
+        /* 전체 페이지 스타일 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             text-align: center;
@@ -22,6 +22,8 @@
             touch-action: manipulation;
         }
         h2 { margin-top: 0; }
+
+        /* --- 1. 검색 화면 스타일 --- */
         #search-view {
             max-width: 700px;
             margin: 40px auto;
@@ -31,12 +33,14 @@
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         .title-wrapper {
             display: flex;
             justify-content: center;
             align-items: center;
             margin-bottom: 30px;
         }
+        
         .title-wrapper h2 {
             font-size: 2.8em;
             font-weight: 700;
@@ -44,6 +48,39 @@
             margin: 0 20px;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 193, 7, 0.5);
         }
+        
+        .decoration-container {
+            width: 100px;
+            height: 60px;
+            position: relative;
+        }
+
+        .star, .balloon {
+            position: absolute;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .star {
+            width: 10px;
+            height: 10px;
+            background-color: yellow;
+            clip-path: polygon(50% 0%, 61.8% 38.2%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 75%, 19.1% 100%, 30.9% 61.8%, 0% 38.2%, 38.2% 38.2%);
+        }
+
+        .balloon {
+            width: 12px;
+            height: 16px;
+            background-color: red;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            transform: rotate(-15deg);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); opacity: 0.9; }
+            50% { transform: translateY(-10px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0px); opacity: 0.9; }
+        }
+
         .search-box {
             display: flex;
             margin-bottom: 20px;
@@ -51,6 +88,7 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             overflow: hidden;
         }
+
         #search-input {
             flex-grow: 1;
             padding: 10px 25px;
@@ -60,6 +98,7 @@
             color: #333;
             background: #f0f0f0;
         }
+
         #search-button {
             padding: 10px 30px;
             font-size: 16px;
@@ -70,6 +109,7 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
+        
         .view-toggle-buttons {
             display: flex;
             gap: 10px;
@@ -95,63 +135,247 @@
             border-color: #ffc107;
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
         }
+        
+        #show-playlist-btn .playlist-icon {
+            color: #28a745; /* 초록색 음표 */
+            font-style: normal;
+        }
+        .view-toggle-buttons button.active .playlist-icon {
+            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
+        }
+
+        #search-results-container {
+            min-height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
         #search-results {
-            list-style: none; padding: 0; margin: 0;
-            max-height: calc(100vh - 510px); overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: calc(100vh - 510px);
+            overflow-y: auto;
         }
+        
         .result-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 20px; cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: left; transition: background-color 0.3s ease;
+            text-align: left;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
+        .song-info {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .list-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .favorite-btn, .playlist-add-btn, .playlist-remove-btn {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s ease, color 0.2s ease;
+            color: #fff;
+        }
+        .playlist-move-btn {
+            font-size: 16px;
+            background: none;
+            border: none;
+            color: #f0f0f0;
+            padding: 5px 8px;
+            cursor: pointer;
+        }
+        .playlist-move-btn:hover {
+            color: #ffc107;
+        }
+
+        .favorite-btn:hover, .playlist-add-btn:hover, .playlist-remove-btn:hover {
+            transform: scale(1.2);
+        }
+        .favorite-btn.favorited {
+            color: #ffc107;
+        }
+        .playlist-add-btn { color: #1DB954; }
+        .playlist-add-btn.added { color: #28a745; font-weight: bold; }
+        .playlist-remove-btn { color: #F44336; }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
         .result-item:hover {
             background: linear-gradient(90deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0));
         }
-        .result-item .title { font-size: 1.1em; font-weight: bold; margin-bottom: 4px; color: #ffffff; }
-        .result-item .artist { font-size: 0.9em; color: #bdc3c7; }
-        .list-buttons { display: flex; gap: 10px; }
-        .favorite-btn, .playlist-add-btn, .playlist-remove-btn {
-            font-size: 24px; cursor: pointer; padding: 5px;
-            transition: transform 0.2s ease, color 0.2s ease; color: #fff;
+
+        .result-item .title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #ffffff;
         }
-        .favorite-btn.favorited { color: #ffc107; }
-        .playlist-add-btn.added { color: #28a745; }
-        #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.5); margin: 15px 0; }
+
+        .result-item .artist {
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+        #loadMoreBtn, #start-playlist-btn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background-color: #ffc107;
+            color: #212529;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        #loadMoreBtn:hover:not(:disabled), #start-playlist-btn:hover:not(:disabled) {
+            background-color: #e0a800;
+            transform: scale(1.05);
+        }
+
+        #loadMoreBtn:disabled, #start-playlist-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        #visualizer { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
+        #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
         #ytplayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         button { padding: 12px 25px; font-size: 18px; font-weight: bold; margin: 5px; cursor: pointer; border-radius: 25px; border: none; color: white; transition: all 0.2s ease-in-out; }
         #startBtn { background-color: #1DB954; }
+        #startBtn:hover:not(:disabled) { background-color: #1ED760; transform: scale(1.05); }
         #startBtn:disabled { background-color: #555; cursor: not-allowed; }
         #stopBtn { background-color: #F44336; }
+        #stopBtn:hover { background-color: #d9534f; transform: scale(1.05); }
         #backBtn { background-color: #adb5bd; color: #212529; }
+        #backBtn:hover { background-color: #ced4da; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
+        
+        #lyrics-zoom-guide { color: #e0e0e0; font-size: 14px; margin: 15px 0; opacity: 0.8; }
+        #headphone-guide { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 15px; margin: 20px auto; background-color: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; max-width: 90%; }
+        #headphone-guide .guide-icon { font-size: 2em; }
+        #headphone-guide p { margin: 0; font-size: 14px; line-height: 1.5; color: #f0f0f0; text-align: left; }
         #downloadBtn { background-color: #007bff; margin-left: 10px; }
+        #downloadBtn:hover { background-color: #0056b3; }
+        
+        #keep-awake-alert {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #ffc107;
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 1000;
+            display: none;
+            animation: pulse 2s infinite;
+            text-align: center;
+            white-space: normal;
+            line-height: 1.4;
+            max-width: 90%;
+        }
+        
+        @media (min-width: 1800px) {
+            #keep-awake-alert {
+                display: none !important;
+            }
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+        
+        @media (max-width: 600px) {
+            #search-view { margin-top: 20px; padding: 20px; }
+            .title-wrapper h2 { font-size: 2.1em; margin: 0 10px; }
+            .decoration-container { width: 50px; }
+            #search-input, #search-button, .view-toggle-buttons button { padding: 10px 15px; font-size: 12px; }
+            .result-item { padding: 10px 15px; }
+            .result-item .title { font-size: 1em; }
+            .result-item .artist { font-size: 0.8em; }
+            #lyrics-zoom-guide { font-size: 12px; }
+            #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
+            #headphone-guide p { text-align: center; font-size: 12px; }
+            .view-toggle-buttons { flex-wrap: wrap; }
+            #keep-awake-alert {
+                width: 90%;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
+
     <div id="search-view">
       <header>
-          <div class="title-wrapper"><h2>🎤 나의 노래방</h2></div>
+          <div class="title-wrapper">
+              <div class="decoration-container left"></div>
+              <h2>🎤 나의 노래방</h2>
+              <div class="decoration-container right"></div>
+          </div>
           <div class="search-box">
               <input type="text" id="search-input" placeholder="가수 이름 또는 노래 제목 입력...">
               <button id="search-button">검색</button>
           </div>
       </header>
+
       <div class="view-toggle-buttons">
           <button id="show-search-btn" class="active">전체 검색</button>
           <button id="show-favorites-btn">⭐ 즐겨찾기</button>
           <button id="show-recents-btn">🕓 최근 부른 곡</button>
-          <button id="show-playlist-btn">🎶 연속 부르기</button>
+          <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
       </div>
-      <div id="search-results-container"><ul id="search-results"></ul></div>
+      <div id="playlist-controls" style="display: none; text-align: center;">
+          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
+      </div>
+      <div id="search-results-container">
+          <ul id="search-results">
+          </ul>
+      </div>
       <div id="load-more-container" style="text-align: center; margin-top: 20px;">
           <button id="loadMoreBtn" style="display: none;">더 보기</button>
       </div>
     </div>
+
     <div id="karaoke-view" style="display: none;">
+      <canvas id="visualizer"></canvas>
       <div id="karaoke-container">
-        <header><h2 id="karaoke-title"></h2></header>
-        <div id="playerContainer"><div id="ytplayer"></div></div>
+        <header>
+            <h2 id="karaoke-title"></h2>
+        </header>
+        <div id="playerContainer">
+          <div id="ytplayer"></div>
+        </div>
+        <div id="lyrics-zoom-guide">
+            💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
+        </div>
+        <div id="headphone-guide" style="display: none;">
+            <span class="guide-icon">🎧</span>
+            <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
+        </div>
+        <div id="power-guide" style="cursor: pointer; margin: 15px auto; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
+            <span>ℹ️ 기능 및 유의사항 안내</span>
+        </div>
         <footer>
           <div>
             <button id="startBtn" disabled>▶ 시작</button>
@@ -163,26 +387,79 @@
             <audio id="recordedAudio" controls style="width: 100%;"></audio>
             <button id="downloadBtn" style="display: none;">💾 다운로드</button>
           </div>
+          <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
         </footer>
       </div>
     </div>
+
+    <div id="keep-awake-alert">화면이 어두워지면 (슬립모드 진입) 화면이<br>꺼지지 않도록 주기적으로 터치해주세요!</div>
+
+    <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
+    <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
+
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         // --- 전역 변수 ---
         let pitch, mediaRecorder, player, audioContext;
         let micSourceNode, micGainNode; // ## ALGORITHM: 가상 믹서(Gain) 노드 추가
-        let recordedChunks = [], currentSongData = null;
-        let isSinging = false, isPreparing = false, isStoppingManually = false;
-        // (UI 관련 변수들은 생략)
+        let rawMicStream; // 원본 마이크 스트림 저장
+        let recordedChunks = [], currentSongData = null, currentPlaylist = [], currentPlaylistIndex = 0;
+        let isSinging = false, isPlaylistMode = false, isPreparing = false, isStoppingManually = false;
+        let currentQuery = '', currentPage = 1, totalPages = 1, debounceTimer, currentView = 'search';
+        let noSleep = new NoSleep();
+        let wakeLock = null;
 
+        // --- 전역 DOM 요소 변수 ---
+        let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
+        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
+        let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
+
+        // --- 초기화 로직 ---
         window.onload = () => {
-            // UI 요소 할당 및 이벤트 리스너 설정 (생략)
-        };
-        
-        function onYouTubeIframeAPIReady() { /* 생략 */ }
+            searchView = document.getElementById('search-view');
+            karaokeView = document.getElementById('karaoke-view');
+            searchInput = document.getElementById('search-input');
+            searchButton = document.getElementById('search-button');
+            searchResultsUl = document.getElementById('search-results');
+            loadMoreBtn = document.getElementById('loadMoreBtn');
+            playlistControls = document.getElementById('playlist-controls');
+            noSleepVideo = document.getElementById('noSleepVideo');
+            showSearchBtn = document.getElementById('show-search-btn');
+            showFavoritesBtn = document.getElementById('show-favorites-btn');
+            showRecentsBtn = document.getElementById('show-recents-btn');
+            showPlaylistBtn = document.getElementById('show-playlist-btn');
+            startPlaylistBtn = document.getElementById('start-playlist-btn');
+            startBtn = document.getElementById('startBtn');
+            stopBtn = document.getElementById('stopBtn');
+            backBtn = document.getElementById('backBtn');
+            micErrorMessage = document.getElementById('mic-error-message');
+            headphoneGuide = document.getElementById('headphone-guide');
+            keepAwakeAlert = document.getElementById('keep-awake-alert');
 
+            showSearchBtn.addEventListener('click', () => switchView('search'));
+            showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
+            showRecentsBtn.addEventListener('click', () => switchView('recents'));
+            showPlaylistBtn.addEventListener('click', () => switchView('playlist'));
+            startPlaylistBtn.addEventListener('click', startPlaylist);
+            searchButton.addEventListener('click', startNewSearch);
+            searchInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') startNewSearch(); });
+            loadMoreBtn.addEventListener('click', () => { currentPage++; fetchAndRenderResults(); });
+            backBtn.onclick = returnToSearchView;
+            stopBtn.onclick = stopSinging;
+            startBtn.onclick = startSinging;
+        };
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('ytplayer', {
+                height: '360', width: '640',
+                playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3 },
+                events: { 'onReady': () => {}, 'onStateChange': onPlayerStateChange }
+            });
+        }
+        
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED && isSinging) {
+                isStoppingManually = false;
                 stopSinging();
             }
             if (event.data === YT.PlayerState.PAUSED && isSinging && !isStoppingManually) {
@@ -190,12 +467,16 @@
             }
         }
 
-        async function prepareKaraoke(songData) {
+        async function prepareKaraoke(songData, isPlaylist = false) {
             isPreparing = true;
             currentSongData = songData;
-            // UI 전환 (생략)
+            document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
+            searchView.style.display = 'none';
+            karaokeView.style.display = 'block';
+            
             await cleanupAudioResources();
             resetState();
+            
             player.cueVideoById(songData.videoId);
             startBtn.disabled = false;
             stopBtn.disabled = true;
@@ -204,21 +485,24 @@
 
         async function startSinging() {
             if (isPreparing || isSinging) return;
+            
             isSinging = true;
             isStoppingManually = false;
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
 
             try {
                 // ## ALGORITHM: 오디오 파이프라인 재설계 ##
                 // 1. 원본 마이크 스트림 가져오기
-                const rawMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                rawMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
                 
                 // 2. 오디오 컨텍스트 및 가상 믹서(GainNode) 생성
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 micSourceNode = audioContext.createMediaStreamSource(rawMicStream);
                 micGainNode = audioContext.createGain();
-                micGainNode.gain.value = 1; // 기본 볼륨은 1(최대)
+                micGainNode.gain.setValueAtTime(1, audioContext.currentTime); // 볼륨을 1로 시작
 
-                // 3. 녹음기와 음정 분석기로 보낼 새로운 '처리된' 스트림 생성
+                // 3. 녹음과 음정 분석으로 보낼 새로운 '처리된' 스트림 생성
                 const destinationNode = audioContext.createMediaStreamDestination();
                 micSourceNode.connect(micGainNode);
                 micGainNode.connect(destinationNode);
@@ -239,18 +523,21 @@
                 mediaRecorder.start();
                 getPitch();
 
-                startBtn.disabled = true;
                 stopBtn.disabled = false;
             } catch (err) {
                 console.error("오디오 시작 실패:", err);
+                micErrorMessage.style.display = 'block';
+                micErrorMessage.textContent = "마이크 사용 권한이 필요합니다.";
                 isSinging = false;
+                startBtn.disabled = false;
             }
         }
 
         /** '중단' 버튼: 노래와 모든 관련 리소스를 '부드럽게' 중지합니다. */
         function stopSinging() {
             if (!isSinging) return;
-            isStoppingManually = true;
+            
+            isStoppingManually = true; // 수동 중단 플래그 설정
             isSinging = false;
             
             startBtn.disabled = true;
@@ -258,54 +545,67 @@
 
             // ## ALGORITHM: 페이드 아웃 로직 ##
             if (micGainNode && audioContext && audioContext.state === 'running') {
-                // 1. 볼륨을 0.1초에 걸쳐 0으로 줄임 (페이드 아웃)
-                micGainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.1);
+                // 1. 볼륨을 0.15초에 걸쳐 0으로 줄임 (페이드 아웃)
+                micGainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.15);
 
                 // 2. 페이드 아웃이 끝난 후, 미디어를 정지시킴
                 setTimeout(() => {
-                    if (player) player.stopVideo();
+                    if (player && typeof player.stopVideo === 'function') player.stopVideo();
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop(); // .onstop 이벤트에서 최종 cleanup이 실행됨
+                    } else {
+                        // 녹음기가 실행되지 않은 경우에도 cleanup 호출
+                        cleanupAudioResources().then(() => startBtn.disabled = false);
                     }
-                }, 150);
+                }, 200); // 페이드아웃 시간보다 약간 길게 설정
             } else {
-                // 오디오 컨텍스트가 없는 경우, 바로 정리
-                if (player) player.stopVideo();
-                cleanupAudioResources().then(() => {
-                    startBtn.disabled = false;
-                });
+                // 오디오 컨텍스트가 없는 예외적인 경우, 바로 정리
+                if (player && typeof player.stopVideo === 'function') player.stopVideo();
+                cleanupAudioResources().then(() => startBtn.disabled = false);
             }
         }
-
-        function returnToSearchView() {
-            if (isSinging) stopSinging();
-            else cleanupAudioResources();
-            // UI 전환 (생략)
-        }
-
-        /** MediaRecorder 설정 및 이벤트 핸들러 */
+        
         function setupMediaRecorder(songForRecording) {
             mediaRecorder.ondataavailable = e => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
             
-            // 녹음이 완전히 멈췄을 때 실행되는 이벤트
             mediaRecorder.onstop = () => {
-                if (!isStoppingManually) {
-                    // UI 업데이트 및 파일 생성 (생략)
-                }
-                // 모든 작업이 끝난 후 최종적으로 오디오 리소스 정리
+                const wasManualStop = isStoppingManually;
+                
+                // 리소스 정리 먼저 호출
                 cleanupAudioResources().then(() => {
-                    if(startBtn) startBtn.disabled = false;
+                    // 수동 중단이 아니었고, 녹음된 데이터가 있을 때만 파일 처리
+                    if (!wasManualStop && recordedChunks.length > 0) {
+                        const resultArea = document.getElementById('resultArea');
+                        resultArea.style.display = 'block';
+                        resultArea.querySelector('h4').textContent = '녹음 완료!';
+
+                        const audioPlayer = document.getElementById('recordedAudio');
+                        const downloadBtn = document.getElementById('downloadBtn');
+                        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                        const url = URL.createObjectURL(blob);
+                        audioPlayer.src = url;
+
+                        downloadBtn.style.display = 'inline-block';
+                        downloadBtn.onclick = () => {
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `나의노래방-${songForRecording.title.trim()}.webm`;
+                            a.click();
+                        };
+                    }
+                    recordedChunks = []; // 청크 초기화
+                    startBtn.disabled = false; // 버튼 상태 최종 업데이트
                 });
             };
         }
 
-        /** 모든 오디오 관련 리소스를 안전하게 해제 (가장 마지막에 호출) */
         async function cleanupAudioResources() {
             // 원본 마이크 스트림의 트랙을 중지
-            if (micSourceNode && micSourceNode.mediaStream) {
-                micSourceNode.mediaStream.getTracks().forEach(track => track.stop());
+            if (rawMicStream) {
+                rawMicStream.getTracks().forEach(track => track.stop());
+                rawMicStream = null;
             }
 
             if (audioContext && audioContext.state !== 'closed') {
@@ -317,14 +617,53 @@
             audioContext = null;
             pitch = null;
             mediaRecorder = null;
-            recordedChunks = [];
         }
 
-        function getPitch() { /* 생략 */ }
-        function resetState() { /* 생략 */ }
+        function returnToSearchView() {
+            if (isSinging) {
+                stopSinging();
+            } else {
+                cleanupAudioResources();
+            }
+            searchView.style.display = 'block';
+            karaokeView.style.display = 'none';
+        }
         
-        // 나머지 UI 및 데이터 관리 함수들 (생략)
+        function resetState() {
+            recordedChunks = [];
+            const resultArea = document.getElementById('resultArea');
+            resultArea.style.display = 'none';
+            document.getElementById('recordedAudio').src = "";
+            document.getElementById('downloadBtn').style.display = 'none';
+            micErrorMessage.style.display = 'none';
+        }
 
+        function getPitch() {
+            if (!pitch || !isSinging) return;
+            pitch.getPitch((err, frequency) => {
+                if (isSinging) {
+                    // visualizer drawing logic here
+                    requestAnimationFrame(getPitch);
+                }
+            });
+        }
+        
+        // --- 나머지 UI 및 데이터 관리 함수들 ---
+        function switchView(view) { /* ... */ }
+        function startNewSearch() { /* ... */ }
+        async function fetchAndRenderResults() { /* ... */ }
+        function renderSearchResults(results) { /* ... */ }
+        function renderSongList(songs) { /* ... */ }
+        function toggleFavorite(songData, btnElement) { /* ... */ }
+        function addSongToPlaylist(songData, btnElement) { /* ... */ }
+        function removeSongFromPlaylist(videoId) { /* ... */ }
+        function startPlaylist() { /* ... */ }
+        const getFavorites = () => JSON.parse(localStorage.getItem('karaokeFavorites') || '[]');
+        const saveFavorites = (favorites) => localStorage.setItem('karaokeFavorites', JSON.stringify(favorites));
+        const getRecents = () => JSON.parse(localStorage.getItem('karaokeRecents') || '[]');
+        const addRecentSong = (songData) => { /* ... */ };
+        const getPlaylist = () => JSON.parse(localStorage.getItem('karaokePlaylist') || '[]');
+        const savePlaylist = (playlist) => localStorage.setItem('karaokePlaylist', JSON.stringify(playlist));
     </script>
 </body>
 </html>
