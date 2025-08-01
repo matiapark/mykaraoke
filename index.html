@@ -367,14 +367,16 @@
             <span class="guide-icon">🎧</span>
             <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
         </div>
-        <div id="power-guide" style="cursor: pointer; margin: 15px auto; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
-            <span>ℹ️ 기능 및 유의사항 안내</span>
-        </div>
-        <footer>
-          <div id="pre-start-controls-container">
-            <div style="margin-bottom: 5px;">
-              <button id="echo-settings-btn" style="padding: 8px 16px; font-size: 14px; background-color: #6c757d;">🎛️ 에코</button>
+        
+        <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px;">
+            <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
+                <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
+            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0;">🎛️ 에코</button>
+        </div>
+
+        <footer>
+          <div id="main-controls-container">
             <div>
               <button id="startBtn" disabled>▶ 시작</button>
               <button id="stopBtn" disabled>⏹ 중단</button>
@@ -430,7 +432,7 @@
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
-        let echoSettingsBtn, audioSettingsPanel;
+        let echoSettingsBtn, audioSettingsPanel, subControlsContainer;
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -456,6 +458,7 @@
             keepAwakeAlert = document.getElementById('keep-awake-alert');
             echoSettingsBtn = document.getElementById('echo-settings-btn');
             audioSettingsPanel = document.getElementById('audio-settings-panel');
+            subControlsContainer = document.getElementById('sub-controls-container');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -560,7 +563,7 @@
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             
-            echoSettingsBtn.style.display = 'inline-block';
+            subControlsContainer.style.display = 'flex';
             audioSettingsPanel.style.display = 'none';
 
             if (isFirstSongInPlaylist) {
@@ -612,7 +615,7 @@
                 resetState();
                 
                 headphoneGuide.style.display = 'none';
-                echoSettingsBtn.style.display = 'none';
+                subControlsContainer.style.display = 'none';
                 audioSettingsPanel.style.display = 'none';
                 
                 document.getElementById('resultArea').style.display = 'block';
@@ -671,11 +674,11 @@
             wetGain.connect(outputNode);
             
             const echoPresets = [
-                { time: 0, feedback: 0, mix: 0 },
-                { time: 0.2, feedback: 0.25, mix: 0.25 },
-                { time: 0.3, feedback: 0.4, mix: 0.35 },
-                { time: 0.4, feedback: 0.55, mix: 0.45 },
-                { time: 0.5, feedback: 0.7, mix: 0.50 }
+                { time: 0.0,  feedback: 0.0,  mix: 0.0 },  // 0: 끄기
+                { time: 0.15, feedback: 0.1,  mix: 0.15 }, // 1: 아주 약하게
+                { time: 0.2,  feedback: 0.2,  mix: 0.25 }, // 2: 약하게
+                { time: 0.25, feedback: 0.3,  mix: 0.30 }, // 3: 중간
+                { time: 0.3,  feedback: 0.4,  mix: 0.35 }  // 4: 강하게 (기존 '중간' 수준)
             ];
 
             const levelSlider = document.getElementById('echo-level-slider');
@@ -685,9 +688,15 @@
                 
                 const level = parseInt(levelSlider.value);
                 const preset = echoPresets[level];
+                const now = audioContext.currentTime;
 
-                delayNode.delayTime.setTargetAtTime(preset.time, audioContext.currentTime, 0.02);
-                feedbackGain.gain.setTargetAtTime(preset.feedback, audioContext.currentTime, 0.02);
+                // 기존 스케줄된 값을 취소하여 즉시 변경되도록 함
+                delayNode.delayTime.cancelScheduledValues(now);
+                feedbackGain.gain.cancelScheduledValues(now);
+
+                // 새 값을 즉시 설정
+                delayNode.delayTime.setValueAtTime(preset.time, now);
+                feedbackGain.gain.setValueAtTime(preset.feedback, now);
                 dryGain.gain.value = 1.0 - preset.mix;
                 wetGain.gain.value = preset.mix;
             }
@@ -781,7 +790,7 @@
             setTimeout(() => {
                 if(startBtn) startBtn.disabled = false;
                 if(stopBtn) stopBtn.disabled = true;
-                if(echoSettingsBtn) echoSettingsBtn.style.display = 'inline-block';
+                if(subControlsContainer) subControlsContainer.style.display = 'flex';
             }, delay);
         }
         
