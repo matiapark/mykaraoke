@@ -369,10 +369,10 @@
         </div>
         
         <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px;">
+            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0;">🎛️ 에코</button>
             <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
                 <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
-            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0;">🎛️ 에코</button>
         </div>
 
         <footer>
@@ -426,7 +426,7 @@
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
-        let delayNode, feedbackGain, wetGain, dryGain;
+        let delayNode, feedbackGain, wetGain, dryGain, wetBranchGain;
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
@@ -662,14 +662,17 @@
             feedbackGain = audioContext.createGain();
             wetGain = audioContext.createGain();
             dryGain = audioContext.createGain();
+            wetBranchGain = audioContext.createGain();
 
+            // Dry Path: source -> dryGain -> output
             sourceNode.connect(dryGain);
             dryGain.connect(outputNode);
 
-            sourceNode.connect(delayNode);
+            // Wet Path: source -> wetBranchGain -> delay -> feedback -> delay -> wetGain -> output
+            sourceNode.connect(wetBranchGain);
+            wetBranchGain.connect(delayNode);
             delayNode.connect(feedbackGain);
             feedbackGain.connect(delayNode);
-
             delayNode.connect(wetGain);
             wetGain.connect(outputNode);
             
@@ -690,11 +693,16 @@
                 const preset = echoPresets[level];
                 const now = audioContext.currentTime;
 
-                // 기존 스케줄된 값을 취소하여 즉시 변경되도록 함
+                // 0레벨에서는 wet 경로의 입력을 완전히 차단하여 에코를 확실히 끔
+                if (level === 0) {
+                    wetBranchGain.gain.setValueAtTime(0, now);
+                } else {
+                    wetBranchGain.gain.setValueAtTime(1, now);
+                }
+
                 delayNode.delayTime.cancelScheduledValues(now);
                 feedbackGain.gain.cancelScheduledValues(now);
 
-                // 새 값을 즉시 설정
                 delayNode.delayTime.setValueAtTime(preset.time, now);
                 feedbackGain.gain.setValueAtTime(preset.feedback, now);
                 dryGain.gain.value = 1.0 - preset.mix;
