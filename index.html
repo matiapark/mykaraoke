@@ -275,7 +275,6 @@
         #downloadBtn { background-color: #007bff; margin-left: 10px; }
         #downloadBtn:hover { background-color: #0056b3; }
         
-        /* 수정된 keep-awake-alert 스타일 */
         #keep-awake-alert {
             position: fixed;
             bottom: 20px;
@@ -292,12 +291,6 @@
             white-space: normal;
             line-height: 1.4;
             max-width: 90%;
-        }
-        
-        @media (min-width: 1800px) {
-            #keep-awake-alert {
-                display: none !important;
-            }
         }
         
         @keyframes pulse {
@@ -390,11 +383,11 @@
           </div>
           <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
           
-          <div id="agc-controls" style="margin-top: 15px; color: white;">
+          <div id="agc-controls" style="margin-top: 15px; color: white; display: none;">
               <label for="agc-toggle">🎤 자동 음량 조절 </label>
               <input type="checkbox" id="agc-toggle" checked>
           </div>
-          <div id="delay-controls" style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 5px; color: white;">
+          <div id="delay-controls" style="margin-top: 10px; flex-direction: column; align-items: center; gap: 5px; color: white; display: none;">
               <span>에코 효과 🎛️</span>
               <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
                   <label for="delay-time" style="width: 50px;">시간</label>
@@ -441,7 +434,6 @@
 
         // --- 초기화 로직 ---
         window.onload = () => {
-            // DOM 요소 할당
             searchView = document.getElementById('search-view');
             karaokeView = document.getElementById('karaoke-view');
             searchInput = document.getElementById('search-input');
@@ -469,7 +461,6 @@
                 canvasCtx = canvas.getContext('2d');
             }
             
-            // 이벤트 리스너 할당
             showSearchBtn.addEventListener('click', () => switchView('search'));
             showFavoritesBtn.addEventListener('click', () => switchView('favorites'));
             showRecentsBtn.addEventListener('click', () => switchView('recents'));
@@ -514,7 +505,6 @@
             createDecorations('.right', 5, 3);
         };
 
-        // 화면 가시성 변경 처리
         function handleVisibilityChange() {
             if (document.hidden && player && isSinging) {
                 stopSinging(true);
@@ -526,7 +516,6 @@
             }
         }
 
-        // --- YouTube 플레이어 준비 ---
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
                 height: '360', width: '640',
@@ -538,7 +527,6 @@
             });
         }
         
-        // --- 상태 관리 ---
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSinging) {
@@ -554,7 +542,6 @@
             }
         }
 
-        // --- 노래방 핵심 로직 ---
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -565,6 +552,9 @@
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             
+            document.getElementById('agc-controls').style.display = 'block';
+            document.getElementById('delay-controls').style.display = 'flex';
+
             headphoneGuide.style.display = (isPlaylistMode && !isFirstSongInPlaylist) ? 'none' : 'flex';
             
             await cleanupAudioResources();
@@ -593,7 +583,6 @@
             }
 
             try {
-                // Wake Lock API 또는 NoSleep.js 사용
                 if ('wakeLock' in navigator) {
                     try {
                         wakeLock = await navigator.wakeLock.request('screen');
@@ -602,7 +591,6 @@
                     noSleep.enable();
                 }
 
-                // 마이크 스트림 요청 (AGC는 커스텀으로 구현하므로 false)
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
@@ -611,24 +599,22 @@
                 micErrorMessage.style.display = 'none';
                 resetState();
                 headphoneGuide.style.display = 'none';
+
+                document.getElementById('agc-controls').style.display = 'none';
+                document.getElementById('delay-controls').style.display = 'none';
                 
                 document.getElementById('resultArea').style.display = 'block';
                 document.querySelector('#resultArea h4').textContent = '녹음 중...';
                 
-                // Web Audio API 설정
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const source = audioContext.createMediaStreamSource(audioStream);
 
-                // 최종 출력을 담당할 GainNode (AGC용)
                 gainNode = audioContext.createGain();
-                
-                // 딜레이 효과 설정 (source -> 딜레이 체인 -> gainNode)
                 setupDelayEffect(source, gainNode);
 
                 analyserNode = audioContext.createAnalyser();
                 analyserNode.fftSize = 2048;
 
-                // 최종 파이프라인: ... -> gainNode -> analyserNode -> destination
                 gainNode.connect(analyserNode);
                 
                 const destination = audioContext.createMediaStreamDestination();
