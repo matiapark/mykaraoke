@@ -372,28 +372,31 @@
         </div>
         <footer>
           <div>
+            <button id="echo-settings-btn" style="padding: 8px 16px; font-size: 14px; background-color: #6c757d;">🎛️ 에코</button>
             <button id="startBtn" disabled>▶ 시작</button>
             <button id="stopBtn" disabled>⏹ 중단</button>
             <button id="backBtn">🔍 선곡</button>
           </div>
+
+          <div id="audio-settings-panel" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-top: 10px;">
+              <div id="agc-controls" style="color: white;">
+                  <label for="agc-toggle">🎤 자동 음량 조절 </label>
+                  <input type="checkbox" id="agc-toggle" checked>
+              </div>
+              <div id="delay-controls" style="margin-top: 15px; flex-direction: column; align-items: center; gap: 5px; color: white;">
+                  <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
+                      <label for="echo-level-slider" style="width: 80px;">에코 강도</label>
+                      <input type="range" id="echo-level-slider" min="0" max="4" step="1" value="2" style="width: 60%;">
+                  </div>
+              </div>
+          </div>
+
           <div id="resultArea" style="display:none;">
             <h4>녹음 완료!</h4>
             <audio id="recordedAudio" controls style="width: 100%;"></audio>
             <button id="downloadBtn" style="display: none;">💾 다운로드</button>
           </div>
           <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
-          
-          <div id="agc-controls" style="margin-top: 15px; color: white; display: none;">
-              <label for="agc-toggle">🎤 자동 음량 조절 </label>
-              <input type="checkbox" id="agc-toggle" checked>
-          </div>
-          <div id="delay-controls" style="margin-top: 10px; flex-direction: column; align-items: center; gap: 5px; color: white; display: none;">
-              <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                  <label for="echo-level-slider" style="width: 80px;">에코 강도</label>
-                  <input type="range" id="echo-level-slider" min="0" max="4" step="1" value="2" style="width: 60%;">
-              </div>
-              <div id="echo-level-label" style="font-size: 14px; color: #ffc107;">중간</div>
-          </div>
         </footer>
       </div>
     </div>
@@ -423,6 +426,7 @@
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
+        let echoSettingsBtn, audioSettingsPanel;
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -446,6 +450,8 @@
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
             keepAwakeAlert = document.getElementById('keep-awake-alert');
+            echoSettingsBtn = document.getElementById('echo-settings-btn');
+            audioSettingsPanel = document.getElementById('audio-settings-panel');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -479,6 +485,11 @@
             backBtn.onclick = returnToSearchView;
             stopBtn.onclick = () => stopSinging(true);
             startBtn.onclick = startSinging;
+
+            echoSettingsBtn.addEventListener('click', () => {
+                const isVisible = audioSettingsPanel.style.display === 'block';
+                audioSettingsPanel.style.display = isVisible ? 'none' : 'block';
+            });
 
             document.getElementById('power-guide').addEventListener('click', () => {
                 alert(
@@ -545,14 +556,13 @@
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             
+            echoSettingsBtn.style.display = 'inline-block';
+            audioSettingsPanel.style.display = 'none';
+
             if (isFirstSongInPlaylist) {
-                document.getElementById('headphone-guide').style.display = 'flex';
-                document.getElementById('agc-controls').style.display = 'block';
-                document.getElementById('delay-controls').style.display = 'flex';
+                headphoneGuide.style.display = 'flex';
             } else {
-                document.getElementById('headphone-guide').style.display = 'none';
-                document.getElementById('agc-controls').style.display = 'none';
-                document.getElementById('delay-controls').style.display = 'none';
+                headphoneGuide.style.display = 'none';
             }
             
             await cleanupAudioResources();
@@ -598,8 +608,8 @@
                 resetState();
                 headphoneGuide.style.display = 'none';
 
-                document.getElementById('agc-controls').style.display = 'none';
-                document.getElementById('delay-controls').style.display = 'none';
+                echoSettingsBtn.style.display = 'none';
+                audioSettingsPanel.style.display = 'none';
                 
                 document.getElementById('resultArea').style.display = 'block';
                 document.querySelector('#resultArea h4').textContent = '녹음 중...';
@@ -665,7 +675,6 @@
             ];
 
             const levelSlider = document.getElementById('echo-level-slider');
-            const levelLabel = document.getElementById('echo-level-label');
 
             function updateEchoLevel() {
                 if (!audioContext || !delayNode) return;
@@ -677,8 +686,6 @@
                 feedbackGain.gain.setTargetAtTime(preset.feedback, audioContext.currentTime, 0.02);
                 dryGain.gain.value = 1.0 - preset.mix;
                 wetGain.gain.value = preset.mix;
-                
-                levelLabel.textContent = preset.name;
             }
 
             levelSlider.addEventListener('input', updateEchoLevel);
