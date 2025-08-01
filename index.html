@@ -371,11 +371,15 @@
             <span>ℹ️ 기능 및 유의사항 안내</span>
         </div>
         <footer>
-          <div>
-            <button id="echo-settings-btn" style="padding: 8px 16px; font-size: 14px; background-color: #6c757d;">🎛️ 에코</button>
-            <button id="startBtn" disabled>▶ 시작</button>
-            <button id="stopBtn" disabled>⏹ 중단</button>
-            <button id="backBtn">🔍 선곡</button>
+          <div id="pre-start-controls-container">
+            <div style="margin-bottom: 5px;">
+              <button id="echo-settings-btn" style="padding: 8px 16px; font-size: 14px; background-color: #6c757d;">🎛️ 에코</button>
+            </div>
+            <div>
+              <button id="startBtn" disabled>▶ 시작</button>
+              <button id="stopBtn" disabled>⏹ 중단</button>
+              <button id="backBtn">🔍 선곡</button>
+            </div>
           </div>
 
           <div id="audio-settings-panel" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-top: 10px;">
@@ -386,7 +390,7 @@
               <div id="delay-controls" style="margin-top: 15px; flex-direction: column; align-items: center; gap: 5px; color: white;">
                   <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
                       <label for="echo-level-slider" style="width: 80px;">에코 강도</label>
-                      <input type="range" id="echo-level-slider" min="0" max="4" step="1" value="2" style="width: 60%;">
+                      <input type="range" id="echo-level-slider" min="0" max="4" step="1" value="0" style="width: 60%;">
                   </div>
               </div>
           </div>
@@ -606,8 +610,8 @@
                 isStoppingManually = false;
                 micErrorMessage.style.display = 'none';
                 resetState();
+                
                 headphoneGuide.style.display = 'none';
-
                 echoSettingsBtn.style.display = 'none';
                 audioSettingsPanel.style.display = 'none';
                 
@@ -667,11 +671,11 @@
             wetGain.connect(outputNode);
             
             const echoPresets = [
-                { name: '끄기', time: 0, feedback: 0, mix: 0 },
-                { name: '약하게', time: 0.2, feedback: 0.25, mix: 0.25 },
-                { name: '중간', time: 0.3, feedback: 0.4, mix: 0.35 },
-                { name: '강하게', time: 0.4, feedback: 0.55, mix: 0.45 },
-                { name: '최대', time: 0.5, feedback: 0.7, mix: 0.50 }
+                { time: 0, feedback: 0, mix: 0 },
+                { time: 0.2, feedback: 0.25, mix: 0.25 },
+                { time: 0.3, feedback: 0.4, mix: 0.35 },
+                { time: 0.4, feedback: 0.55, mix: 0.45 },
+                { time: 0.5, feedback: 0.7, mix: 0.50 }
             ];
 
             const levelSlider = document.getElementById('echo-level-slider');
@@ -777,6 +781,7 @@
             setTimeout(() => {
                 if(startBtn) startBtn.disabled = false;
                 if(stopBtn) stopBtn.disabled = true;
+                if(echoSettingsBtn) echoSettingsBtn.style.display = 'inline-block';
             }, delay);
         }
         
