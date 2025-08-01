@@ -388,19 +388,11 @@
               <input type="checkbox" id="agc-toggle" checked>
           </div>
           <div id="delay-controls" style="margin-top: 10px; flex-direction: column; align-items: center; gap: 5px; color: white; display: none;">
-              <span>에코 효과 🎛️</span>
               <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                  <label for="delay-time" style="width: 50px;">시간</label>
-                  <input type="range" id="delay-time" min="0" max="1" step="0.01" value="0.3" style="width: 60%;">
+                  <label for="echo-level-slider" style="width: 80px;">에코 강도</label>
+                  <input type="range" id="echo-level-slider" min="0" max="4" step="1" value="2" style="width: 60%;">
               </div>
-              <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                  <label for="delay-feedback" style="width: 50px;">반복</label>
-                  <input type="range" id="delay-feedback" min="0" max="0.8" step="0.01" value="0.4" style="width: 60%;">
-              </div>
-              <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                  <label for="delay-mix" style="width: 50px;">효과음</label>
-                  <input type="range" id="delay-mix" min="0" max="1" step="0.01" value="0.5" style="width: 60%;">
-              </div>
+              <div id="echo-level-label" style="font-size: 14px; color: #ffc107;">중간</div>
           </div>
         </footer>
       </div>
@@ -537,7 +529,7 @@
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
                     }
-                    isFirstSongInPlaylist = false; // 다음 곡은 첫 곡이 아님
+                    isFirstSongInPlaylist = false; 
                     prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
                 }
             }
@@ -663,24 +655,34 @@
 
             delayNode.connect(wetGain);
             wetGain.connect(outputNode);
+            
+            const echoPresets = [
+                { name: '끄기', time: 0, feedback: 0, mix: 0 },
+                { name: '약하게', time: 0.2, feedback: 0.25, mix: 0.25 },
+                { name: '중간', time: 0.3, feedback: 0.4, mix: 0.35 },
+                { name: '강하게', time: 0.4, feedback: 0.55, mix: 0.45 },
+                { name: '최대', time: 0.5, feedback: 0.7, mix: 0.50 }
+            ];
 
-            const timeSlider = document.getElementById('delay-time');
-            const feedbackSlider = document.getElementById('delay-feedback');
-            const mixSlider = document.getElementById('delay-mix');
+            const levelSlider = document.getElementById('echo-level-slider');
+            const levelLabel = document.getElementById('echo-level-label');
 
-            const updateDelayParams = () => {
-                if (!audioContext || !delayNode || !feedbackGain || !dryGain || !wetGain) return;
-                const mixValue = parseFloat(mixSlider.value);
-                delayNode.delayTime.setTargetAtTime(parseFloat(timeSlider.value), audioContext.currentTime, 0.01);
-                feedbackGain.gain.setTargetAtTime(parseFloat(feedbackSlider.value), audioContext.currentTime, 0.01);
-                dryGain.gain.value = 1.0 - mixValue;
-                wetGain.gain.value = mixValue;
-            };
+            function updateEchoLevel() {
+                if (!audioContext || !delayNode) return;
+                
+                const level = parseInt(levelSlider.value);
+                const preset = echoPresets[level];
 
-            timeSlider.addEventListener('input', updateDelayParams);
-            feedbackSlider.addEventListener('input', updateDelayParams);
-            mixSlider.addEventListener('input', updateDelayParams);
-            updateDelayParams();
+                delayNode.delayTime.setTargetAtTime(preset.time, audioContext.currentTime, 0.02);
+                feedbackGain.gain.setTargetAtTime(preset.feedback, audioContext.currentTime, 0.02);
+                dryGain.gain.value = 1.0 - preset.mix;
+                wetGain.gain.value = preset.mix;
+                
+                levelLabel.textContent = preset.name;
+            }
+
+            levelSlider.addEventListener('input', updateEchoLevel);
+            updateEchoLevel();
         }
 
         function runAutoGainControl() {
