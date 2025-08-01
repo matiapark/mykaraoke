@@ -368,11 +368,11 @@
             <p>이어폰과 마이크를 사용하시면<br>몰입도 있는 음악과 잡음없는 녹음이 가능합니다.</p>
         </div>
         
-        <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px;">
-            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0;">🎛️ 에코</button>
+        <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px; position: relative;">
             <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
                 <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
+            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; right: 20px;">🎛️ 에코</button>
         </div>
 
         <footer>
@@ -664,11 +664,9 @@
             dryGain = audioContext.createGain();
             wetBranchGain = audioContext.createGain();
 
-            // Dry Path: source -> dryGain -> output
             sourceNode.connect(dryGain);
             dryGain.connect(outputNode);
 
-            // Wet Path: source -> wetBranchGain -> delay -> feedback -> delay -> wetGain -> output
             sourceNode.connect(wetBranchGain);
             wetBranchGain.connect(delayNode);
             delayNode.connect(feedbackGain);
@@ -677,11 +675,11 @@
             wetGain.connect(outputNode);
             
             const echoPresets = [
-                { time: 0.0,  feedback: 0.0,  mix: 0.0 },  // 0: 끄기
-                { time: 0.15, feedback: 0.1,  mix: 0.15 }, // 1: 아주 약하게
-                { time: 0.2,  feedback: 0.2,  mix: 0.25 }, // 2: 약하게
-                { time: 0.25, feedback: 0.3,  mix: 0.30 }, // 3: 중간
-                { time: 0.3,  feedback: 0.4,  mix: 0.35 }  // 4: 강하게 (기존 '중간' 수준)
+                { time: 0.0,  feedback: 0.0,  mix: 0.0 },
+                { time: 0.15, feedback: 0.1,  mix: 0.15 },
+                { time: 0.2,  feedback: 0.2,  mix: 0.25 },
+                { time: 0.25, feedback: 0.3,  mix: 0.30 },
+                { time: 0.3,  feedback: 0.4,  mix: 0.35 }
             ];
 
             const levelSlider = document.getElementById('echo-level-slider');
@@ -693,7 +691,6 @@
                 const preset = echoPresets[level];
                 const now = audioContext.currentTime;
 
-                // 0레벨에서는 wet 경로의 입력을 완전히 차단하여 에코를 확실히 끔
                 if (level === 0) {
                     wetBranchGain.gain.setValueAtTime(0, now);
                 } else {
