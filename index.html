@@ -537,6 +537,7 @@
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
                     }
+                    isFirstSongInPlaylist = false; // 다음 곡은 첫 곡이 아님
                     prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
                 }
             }
@@ -552,10 +553,15 @@
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             
-            document.getElementById('agc-controls').style.display = 'block';
-            document.getElementById('delay-controls').style.display = 'flex';
-
-            headphoneGuide.style.display = (isPlaylistMode && !isFirstSongInPlaylist) ? 'none' : 'flex';
+            if (isFirstSongInPlaylist) {
+                document.getElementById('headphone-guide').style.display = 'flex';
+                document.getElementById('agc-controls').style.display = 'block';
+                document.getElementById('delay-controls').style.display = 'flex';
+            } else {
+                document.getElementById('headphone-guide').style.display = 'none';
+                document.getElementById('agc-controls').style.display = 'none';
+                document.getElementById('delay-controls').style.display = 'none';
+            }
             
             await cleanupAudioResources();
             resetState();
