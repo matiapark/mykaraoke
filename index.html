@@ -340,7 +340,7 @@
           <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
       </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
-          <button id="start-playlist-btn"▶️ 플레이리스트 시작</button>
+          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
       </div>
       <div id="search-results-container">
           <ul id="search-results">
@@ -426,8 +426,11 @@
         let wakeLock = null;
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
+        
         let isSyncPlaying = false;
-        let isPreparingSyncPlay = false;
+        let syncAnimationId = null;
+        let syncMasterTime = 0;
+
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -547,22 +550,9 @@
         }
         
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING && isPreparingSyncPlay) {
-                isPreparingSyncPlay = false;
-                document.getElementById('recordedAudio').play();
-            }
-
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
-                    const audioPlayer = document.getElementById('recordedAudio');
-                    if (!audioPlayer.paused) {
-                      audioPlayer.pause();
-                    }
-                    audioPlayer.currentTime = 0;
-                    isSyncPlaying = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true);
-                    player.pauseVideo();
+                    stopSyncPlay(); // 싱크 재생 중 영상이 끝나면 모든 것을 중지 및 초기화
                     return;
                 }
                 
@@ -782,10 +772,10 @@
 
         async function returnToSearchView() {
             if (player) player.stopVideo();
+            stopSyncPlay(); // 싱크 재생 중이었다면 확실히 중지
             
             const audioPlayer = document.getElementById('recordedAudio');
             if(audioPlayer) {
-                audioPlayer.pause();
                 audioPlayer.src = "";
             }
 
@@ -826,8 +816,6 @@
             mediaRecorder = null;
             audioContext = null;
             isSinging = false;
-            isSyncPlaying = false;
-            isPreparingSyncPlay = false;
             
             const delay = isStoppingManually ? 500 : 0;
             setTimeout(() => {
@@ -842,20 +830,71 @@
             if (!audioPlayer || !player) return;
 
             if (isSyncPlaying) {
-                audioPlayer.pause();
                 player.pauseVideo();
+                audioPlayer.pause();
+                isSyncPlaying = false;
+                cancelAnimationFrame(syncAnimationId);
+                playSyncBtn.textContent = '▶️ 듣기';
             } else {
                 const SYNC_OFFSET = 2.0;
-                if (audioPlayer.currentTime < 1.0) {
-                    audioPlayer.currentTime = SYNC_OFFSET;
+                if (syncMasterTime < 1.0) { // 재생이 끝났거나 처음일 때
+                    syncMasterTime = SYNC_OFFSET;
                 }
                 
-                isPreparingSyncPlay = true;
-                player.seekTo(audioPlayer.currentTime, true);
+                audioPlayer.currentTime = syncMasterTime;
+                player.seekTo(syncMasterTime, true);
                 player.setVolume(40);
+                
                 player.playVideo();
+                audioPlayer.play();
+                
+                isSyncPlaying = true;
+                playSyncBtn.textContent = '⏸️ 중지';
+                runSyncLoop();
             }
         }
+        
+        function runSyncLoop() {
+            if (!isSyncPlaying) {
+                cancelAnimationFrame(syncAnimationId);
+                return;
+            }
+
+            const audioPlayer = document.getElementById('recordedAudio');
+            syncMasterTime = audioPlayer.currentTime;
+            const videoTime = player.getCurrentTime();
+            const diff = syncMasterTime - videoTime;
+
+            if (Math.abs(diff) > 0.2) { // 0.2초 이상 차이나면 보정
+                player.seekTo(syncMasterTime, true);
+            }
+
+            if (audioPlayer.ended) {
+                stopSyncPlay();
+            } else {
+                syncAnimationId = requestAnimationFrame(runSyncLoop);
+            }
+        }
+
+        function stopSyncPlay() {
+            if (syncAnimationId) cancelAnimationFrame(syncAnimationId);
+            isSyncPlaying = false;
+            
+            const audioPlayer = document.getElementById('recordedAudio');
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            syncMasterTime = 0;
+
+            if (player) {
+                player.pauseVideo();
+                setTimeout(() => player.seekTo(0, true), 100);
+            }
+
+            if (playSyncBtn) {
+                playSyncBtn.textContent = '▶️ 듣기';
+            }
+        }
+
 
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
@@ -887,30 +926,6 @@
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
-                
-                isSyncPlaying = false;
-                playSyncBtn.textContent = '▶️ 듣기';
-
-                audioPlayer.onplay = () => {
-                    isSyncPlaying = true;
-                    isPreparingSyncPlay = false;
-                    playSyncBtn.textContent = '⏸️ 중지';
-                };
-                audioPlayer.onpause = () => {
-                    isSyncPlaying = false;
-                    isPreparingSyncPlay = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        player.pauseVideo();
-                    }
-                };
-                
-                audioPlayer.onended = () => {
-                    isSyncPlaying = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true);
-                    player.pauseVideo();
-                };
             };
         }
 
@@ -931,7 +946,8 @@
         function resetState() {
             recordedChunks = [];
             isSyncPlaying = false;
-            isPreparingSyncPlay = false;
+            syncMasterTime = 0;
+            if (syncAnimationId) cancelAnimationFrame(syncAnimationId);
             const resultArea = document.getElementById('resultArea');
             resultArea.style.display = 'none';
             resultArea.querySelector('h4').textContent = '';
