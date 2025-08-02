@@ -413,7 +413,7 @@
     <div id="keep-awake-alert">화면이 어두워지면 (슬립모드 진입) 화면이<br>꺼지지 않도록 주기적으로 터치해주세요!</div>
 
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
-    <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
+    <audio id="startSfx" src="https://touch-game-s3.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
@@ -428,6 +428,7 @@
         let isFirstSongInPlaylist = true;
         
         let isSyncPlaying = false;
+        let isWaitingForRecordingStart = false;
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -547,6 +548,15 @@
         }
         
         function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                if (isWaitingForRecordingStart) {
+                    isWaitingForRecordingStart = false;
+                    mediaRecorder.start();
+                    runAutoGainControl();
+                    getPitch();
+                }
+            }
+
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     stopSyncPlay(true);
@@ -653,11 +663,9 @@
                 mediaRecorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
                 setupMediaRecorder(currentSongData); 
 
+                isWaitingForRecordingStart = true;
                 player.playVideo();
-                mediaRecorder.start();
-                getPitch();
                 enableNoSleep();
-                runAutoGainControl();
                 
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
@@ -755,11 +763,13 @@
         }
 
         async function stopSinging(manual = false) {
-            if (!isSinging) return;
+            if (!isSinging && !isWaitingForRecordingStart) return;
             isStoppingManually = manual;
             isSinging = false;
+            isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             } else {
@@ -810,6 +820,7 @@
 
             pitch = null;
             isSinging = false;
+            isWaitingForRecordingStart = false;
             
             const delay = isStoppingManually ? 500 : 0;
             setTimeout(() => {
@@ -826,16 +837,16 @@
             if (isSyncPlaying) {
                 stopSyncPlay(false);
             } else {
-                const audioPlayer = document.getElementById('recordedAudio');
+                audioPlayer.play();
+                player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
                 player.playVideo();
-                setTimeout(() => {
-                    audioPlayer.play();
-                }, 200);
             }
         }
         
         function stopSyncPlay(resetTime = true) {
+            if (syncAnimationId) cancelAnimationFrame(syncAnimationId);
+            
             const audioPlayer = document.getElementById('recordedAudio');
             audioPlayer.pause();
             
