@@ -272,7 +272,7 @@
         #headphone-guide { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 15px; margin: 20px auto; background-color: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; max-width: 90%; }
         #headphone-guide .guide-icon { font-size: 2em; }
         #headphone-guide p { margin: 0; font-size: 14px; line-height: 1.5; color: #f0f0f0; text-align: left; }
-        #downloadBtn { background-color: #007bff; margin-left: 10px; }
+        #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
         #keep-awake-alert {
@@ -401,8 +401,8 @@
             <h4>녹음 완료! (결과 확인)</h4>
             <audio id="recordedAudio"></audio>
             <div id="custom-audio-controls" style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <button id="play-sync-btn">▶️ 듣기</button>
-                <button id="downloadBtn" style="display: none; padding: 8px 15px; font-size: 14px; background-color: #007bff;">💾 다운로드</button>
+                <button id="play-sync-btn" style="background-color: #1DB954; padding: 8px 15px; font-size: 14px;">▶️ 듣기</button>
+                <button id="downloadBtn" style="display: none; padding: 8px 15px; font-size: 14px;">💾 다운로드</button>
             </div>
           </div>
           <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
@@ -816,7 +816,7 @@
                 player.pauseVideo();
             } else {
                 player.seekTo(audioPlayer.currentTime, true);
-                player.setVolume(50);
+                player.setVolume(40); // 【수정】 반주 볼륨 40%로 조절
                 player.playVideo();
                 audioPlayer.play();
             }
