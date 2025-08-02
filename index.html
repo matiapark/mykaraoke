@@ -549,7 +549,6 @@
         }
         
         function onPlayerStateChange(event) {
-            // [수정] 녹음 시작 동기화: 영상이 재생을 시작하면 녹음을 시작
             if (event.data === YT.PlayerState.PLAYING && isWaitingForRecordingStart) {
                 isWaitingForRecordingStart = false;
                 mediaRecorder.start();
@@ -559,13 +558,10 @@
 
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
-                    stopSyncPlay();
-                    return;
-                }
-                if (isSinging) {
+                    stopSyncPlay(true);
+                } else if (isSinging) {
                     stopSinging(false); 
-                }
-                if (isPlaylistMode) {
+                } else if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
@@ -664,7 +660,6 @@
                 mediaRecorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
                 setupMediaRecorder(currentSongData); 
                 
-                // [수정] 녹음 시작 동기화: 녹음 시작 대기 플래그를 세우고 영상 재생만 먼저 시작
                 isWaitingForRecordingStart = true;
                 player.playVideo();
                 enableNoSleep();
@@ -763,22 +758,21 @@
             adjustGain();
         }
 
-        async function stopSinging(manual = false) {
-            if (!isSinging) return;
+        function stopSinging(manual = false) {
+            if (!isSinging && !isWaitingForRecordingStart) return;
             isStoppingManually = manual;
             isSinging = false;
+            isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
-            
-            await cleanupAudioResources();
         }
 
         async function returnToSearchView() {
             if (player) player.stopVideo();
-            stopSyncPlay();
+            stopSyncPlay(true);
             
             const audioPlayer = document.getElementById('recordedAudio');
             if(audioPlayer) {
@@ -803,7 +797,7 @@
             animationFrameId = null;
             agcAnimationId = null;
             
-            stopSyncPlay();
+            stopSyncPlay(true);
 
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
@@ -843,50 +837,22 @@
             if (!audioPlayer || !player) return;
 
             if (isSyncPlaying) {
-                stopSyncPlay(false);
+                stopSyncPlay(false); // 일시정지 (시간 리셋 안함)
             } else {
+                audioPlayer.play();
+                player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
                 player.playVideo();
-                audioPlayer.play();
             }
         }
         
-        function runSyncLoop() {
-            // This function is no longer needed for sync, but kept for future use if necessary
-        }
-
-        function stopSyncPlay(resetTime = true) {
-            const audioPlayer = document.getElementById('recordedAudio');
-            audioPlayer.pause();
-            
-            if (player && typeof player.getPlayerState === 'function') {
-                const state = player.getPlayerState();
-                if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
-                    player.pauseVideo();
-                }
-            }
-            
-            if (resetTime) {
-                audioPlayer.currentTime = 0;
-                if (player) {
-                    setTimeout(() => {
-                        if (player && typeof player.seekTo === 'function') {
-                            player.seekTo(0, true);
-                        }
-                    }, 100);
-                }
-            }
-
-            isSyncPlaying = false;
-            if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
-        }
-
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
             mediaRecorder.onstop = () => {
+                cleanupAudioResources(); // 리소스 정리
                 if (isStoppingManually) {
                     resetState();
                     return; 
