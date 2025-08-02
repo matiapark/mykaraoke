@@ -592,6 +592,7 @@
                 headphoneGuide.style.display = 'none';
             }
             
+            await cleanupAudioResources();
             resetState();
             
             isPlaylistMode = isPlaylist;
@@ -761,18 +762,15 @@
             adjustGain();
         }
 
-        function stopSinging(manual = false) {
+        async function stopSinging(manual = false) {
             if (!isSinging && !isWaitingForRecordingStart) return;
             isStoppingManually = manual;
             isSinging = false;
             isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
-
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-            } else {
-                cleanupAudioResources();
             }
         }
 
@@ -1198,3 +1196,5 @@
     </script>
 </body>
 </html>
+}
+이전 것 모두 잊어버리고 내가 코드를 올려줄께. 거기서 다시 시작하자.
