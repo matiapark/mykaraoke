@@ -340,7 +340,7 @@
           <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
       </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
-          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
+          <button id="start-playlist-btn"▶️ 플레이리스트 시작</button>
       </div>
       <div id="search-results-container">
           <ul id="search-results">
@@ -550,8 +550,7 @@
             // 싱크 재생 준비 상태에서 영상이 재생을 시작하면, 오디오 재생을 시작
             if (event.data === YT.PlayerState.PLAYING && isPreparingSyncPlay) {
                 isPreparingSyncPlay = false;
-                const audioPlayer = document.getElementById('recordedAudio');
-                audioPlayer.play();
+                document.getElementById('recordedAudio').play();
             }
 
             // 재생이 끝났을 때의 로직
