@@ -431,7 +431,6 @@
         let syncAnimationId = null;
         let syncMasterTime = 0;
 
-
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
         let delayNode, feedbackGain, wetGain, dryGain, wetBranchGain;
@@ -552,14 +551,12 @@
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
-                    stopSyncPlay(); // 싱크 재생 중 영상이 끝나면 모든 것을 중지 및 초기화
+                    stopSyncPlay();
                     return;
                 }
-                
                 if (isSinging) {
                     stopSinging(false); 
                 }
-                
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -772,7 +769,7 @@
 
         async function returnToSearchView() {
             if (player) player.stopVideo();
-            stopSyncPlay(); // 싱크 재생 중이었다면 확실히 중지
+            stopSyncPlay();
             
             const audioPlayer = document.getElementById('recordedAudio');
             if(audioPlayer) {
@@ -832,19 +829,14 @@
             if (isSyncPlaying) {
                 player.pauseVideo();
                 audioPlayer.pause();
-                isSyncPlaying = false;
-                cancelAnimationFrame(syncAnimationId);
-                playSyncBtn.textContent = '▶️ 듣기';
+                stopSyncPlay(); // Use the dedicated stop function
             } else {
                 const SYNC_OFFSET = 2.0;
-                if (syncMasterTime < 1.0) { // 재생이 끝났거나 처음일 때
-                    syncMasterTime = SYNC_OFFSET;
-                }
+                let startTime = (syncMasterTime < 1.0) ? SYNC_OFFSET : syncMasterTime;
                 
-                audioPlayer.currentTime = syncMasterTime;
-                player.seekTo(syncMasterTime, true);
+                audioPlayer.currentTime = startTime;
+                player.seekTo(startTime, true);
                 player.setVolume(40);
-                
                 player.playVideo();
                 audioPlayer.play();
                 
@@ -859,13 +851,12 @@
                 cancelAnimationFrame(syncAnimationId);
                 return;
             }
-
             const audioPlayer = document.getElementById('recordedAudio');
             syncMasterTime = audioPlayer.currentTime;
             const videoTime = player.getCurrentTime();
             const diff = syncMasterTime - videoTime;
 
-            if (Math.abs(diff) > 0.2) { // 0.2초 이상 차이나면 보정
+            if (Math.abs(diff) > 0.25) {
                 player.seekTo(syncMasterTime, true);
             }
 
@@ -878,23 +869,21 @@
 
         function stopSyncPlay() {
             if (syncAnimationId) cancelAnimationFrame(syncAnimationId);
-            isSyncPlaying = false;
             
             const audioPlayer = document.getElementById('recordedAudio');
             audioPlayer.pause();
             audioPlayer.currentTime = 0;
-            syncMasterTime = 0;
-
+            
             if (player) {
                 player.pauseVideo();
+                // A short timeout can make the final seekTo more reliable
                 setTimeout(() => player.seekTo(0, true), 100);
             }
 
-            if (playSyncBtn) {
-                playSyncBtn.textContent = '▶️ 듣기';
-            }
+            isSyncPlaying = false;
+            syncMasterTime = 0;
+            if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
         }
-
 
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
@@ -945,9 +934,7 @@
         
         function resetState() {
             recordedChunks = [];
-            isSyncPlaying = false;
-            syncMasterTime = 0;
-            if (syncAnimationId) cancelAnimationFrame(syncAnimationId);
+            stopSyncPlay(); // Make sure sync loop is stopped and states are reset
             const resultArea = document.getElementById('resultArea');
             resultArea.style.display = 'none';
             resultArea.querySelector('h4').textContent = '';
