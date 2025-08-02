@@ -548,13 +548,11 @@
         }
         
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                if (isWaitingForRecordingStart) {
-                    isWaitingForRecordingStart = false;
-                    mediaRecorder.start();
-                    runAutoGainControl();
-                    getPitch();
-                }
+            if (event.data === YT.PlayerState.PLAYING && isWaitingForRecordingStart) {
+                isWaitingForRecordingStart = false;
+                mediaRecorder.start();
+                runAutoGainControl();
+                getPitch();
             }
 
             if (event.data === YT.PlayerState.ENDED) {
@@ -769,8 +767,11 @@
             isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
+            } else {
+                await cleanupAudioResources();
             }
         }
 
