@@ -548,11 +548,13 @@
         }
         
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING && isWaitingForRecordingStart) {
-                isWaitingForRecordingStart = false;
-                mediaRecorder.start();
-                runAutoGainControl();
-                getPitch();
+            if (event.data === YT.PlayerState.PLAYING) {
+                if (isWaitingForRecordingStart) {
+                    isWaitingForRecordingStart = false;
+                    mediaRecorder.start();
+                    getPitch();
+                    runAutoGainControl();
+                }
             }
 
             if (event.data === YT.PlayerState.ENDED) {
@@ -560,7 +562,7 @@
                     stopSyncPlay(true);
                 } else if (isSinging) {
                     stopSinging(false); 
-                } else if (isPlaylistMode) {
+                } else if (isPlaylistMode && !isSinging) { // [수정] 노래 부르기가 아닐 때만 다음 곡으로
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
@@ -767,11 +769,8 @@
             isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
-
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-            } else {
-                await cleanupAudioResources();
             }
         }
 
