@@ -427,6 +427,7 @@
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
         let isSyncPlaying = false;
+        let isPreparingSyncPlay = false;
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -546,20 +547,33 @@
         }
         
         function onPlayerStateChange(event) {
+            // 싱크 재생 준비 상태에서 영상이 재생을 시작하면, 오디오 재생을 시작
+            if (event.data === YT.PlayerState.PLAYING && isPreparingSyncPlay) {
+                isPreparingSyncPlay = false;
+                const audioPlayer = document.getElementById('recordedAudio');
+                audioPlayer.play();
+            }
+
+            // 재생이 끝났을 때의 로직
             if (event.data === YT.PlayerState.ENDED) {
+                // 싱크 재생 중 영상이 끝나면 오디오도 정지 및 초기화
                 if (isSyncPlaying) {
                     const audioPlayer = document.getElementById('recordedAudio');
                     audioPlayer.pause();
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
+                    player.seekTo(0, true);
+                    player.pauseVideo();
                     return; 
                 }
                 
+                // 녹음 중 노래가 끝나면 녹음 중지
                 if (isSinging) {
                     stopSinging(false); 
                 }
                 
+                // 플레이리스트 모드에서 다음 곡으로
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -816,6 +830,8 @@
             mediaRecorder = null;
             audioContext = null;
             isSinging = false;
+            isSyncPlaying = false;
+            isPreparingSyncPlay = false;
             
             const delay = isStoppingManually ? 500 : 0;
             setTimeout(() => {
@@ -833,12 +849,9 @@
                 audioPlayer.pause();
                 player.pauseVideo();
             } else {
+                isPreparingSyncPlay = true;
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
-                // 유튜브 재생 시작 후 약간의 지연을 주어 오디오와 싱크를 맞춤
-                setTimeout(() => {
-                    audioPlayer.play();
-                }, 150); // 150ms 지연 (네트워크 상태에 따라 조절 가능)
                 player.playVideo();
             }
         }
@@ -879,17 +892,16 @@
 
                 audioPlayer.onplay = () => {
                     isSyncPlaying = true;
+                    isPreparingSyncPlay = false;
                     playSyncBtn.textContent = '⏸️ 중지';
                 };
                 audioPlayer.onpause = () => {
                     isSyncPlaying = false;
+                    isPreparingSyncPlay = false;
                     playSyncBtn.textContent = '▶️ 듣기';
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
                         player.pauseVideo();
                     }
-                };
-                audioPlayer.onended = () => {
-                    // 이 이벤트는 이제 onPlayerStateChange에서 처리하므로 비워두거나 보조용으로 사용
                 };
             };
         }
@@ -911,6 +923,7 @@
         function resetState() {
             recordedChunks = [];
             isSyncPlaying = false;
+            isPreparingSyncPlay = false;
             const resultArea = document.getElementById('resultArea');
             resultArea.style.display = 'none';
             resultArea.querySelector('h4').textContent = '';
