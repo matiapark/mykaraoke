@@ -429,6 +429,7 @@
         
         let isSyncPlaying = false;
         let syncAnimationId = null;
+        let syncMasterTime = 0;
         let isPreparingSyncPlay = false;
 
         // Web Audio API 관련 변수
@@ -800,6 +801,8 @@
             animationFrameId = null;
             agcAnimationId = null;
             
+            stopSyncPlay();
+
             if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
             
             if (audioContext && audioContext.state !== 'closed') {
@@ -830,7 +833,7 @@
         
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
-            if (!audioPlayer || !player) return;
+            if (!audioPlayer || !player || isPreparingSyncPlay) return;
 
             if (isSyncPlaying) {
                 stopSyncPlay();
@@ -871,13 +874,13 @@
             
             const audioPlayer = document.getElementById('recordedAudio');
             audioPlayer.pause();
-            audioPlayer.currentTime = 0;
             
             if (player) {
                 player.pauseVideo();
-                setTimeout(() => player.seekTo(0, true), 100);
+                if (player.getPlayerState() === YT.PlayerState.ENDED) {
+                    player.seekTo(0, true);
+                }
             }
-
             isSyncPlaying = false;
             isPreparingSyncPlay = false;
             if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
@@ -914,17 +917,14 @@
                 };
                 recordedChunks = [];
                 
-                isSyncPlaying = false;
-                playSyncBtn.textContent = '▶️ 듣기';
-
                 audioPlayer.onplay = () => {
                     isSyncPlaying = true;
                     playSyncBtn.textContent = '⏸️ 중지';
                 };
                 audioPlayer.onpause = () => {
-                    if(isSyncPlaying){ 
+                   if (isSyncPlaying) {
                         stopSyncPlay();
-                    }
+                   }
                 };
             };
         }
