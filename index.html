@@ -556,7 +556,7 @@
                     runAutoGainControl();
                 }
             }
-            
+
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     stopSyncPlay(true);
@@ -771,6 +771,8 @@
             if (player) player.stopVideo();
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
+            } else {
+                await cleanupAudioResources();
             }
         }
 
@@ -1196,5 +1198,3 @@
     </script>
 </body>
 </html>
-}
-이전 것 모두 잊어버리고 내가 코드를 올려줄께. 거기서 다시 시작하자.
