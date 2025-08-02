@@ -429,7 +429,6 @@
         
         let isSyncPlaying = false;
         let syncAnimationId = null;
-        let syncMasterTime = 0;
         let isPreparingSyncPlay = false;
 
         // Web Audio API 관련 변수
@@ -842,15 +841,14 @@
                 const SYNC_OFFSET = 2.0;
                 let startTime = audioPlayer.currentTime;
 
-                if (startTime < 1.0) {
+                if (startTime < 1.0) { // currentTime이 0에 가까우면 처음 재생으로 간주
                     startTime = SYNC_OFFSET;
                 }
                 
                 audioPlayer.currentTime = startTime;
                 isPreparingSyncPlay = true;
-                player.seekTo(startTime, true);
+                player.cueVideoById(currentSongData.videoId, startTime);
                 player.setVolume(40);
-                player.playVideo();
             }
         }
         
@@ -875,12 +873,10 @@
             const audioPlayer = document.getElementById('recordedAudio');
             audioPlayer.pause();
             
-            if (player) {
+            if (player && typeof player.getPlayerState === 'function' && player.getPlayerState() !== YT.PlayerState.ENDED) {
                 player.pauseVideo();
-                if (player.getPlayerState() === YT.PlayerState.ENDED) {
-                    player.seekTo(0, true);
-                }
             }
+
             isSyncPlaying = false;
             isPreparingSyncPlay = false;
             if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
@@ -925,6 +921,9 @@
                    if (isSyncPlaying) {
                         stopSyncPlay();
                    }
+                };
+                audioPlayer.onended = () => {
+                    stopSyncPlay();
                 };
             };
         }
