@@ -769,11 +769,8 @@
             isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
-
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-            } else {
-                await cleanupAudioResources();
             }
         }
 
@@ -845,8 +842,6 @@
         }
         
         function stopSyncPlay(resetTime = true) {
-            if (syncAnimationId) cancelAnimationFrame(syncAnimationId);
-            
             const audioPlayer = document.getElementById('recordedAudio');
             audioPlayer.pause();
             
