@@ -399,8 +399,11 @@
 
           <div id="resultArea" style="display:none;">
             <h4>녹음 완료! (결과 확인)</h4>
-            <audio id="recordedAudio" controls style="width: 100%;"></audio>
-            <button id="downloadBtn" style="display: none;">💾 다운로드</button>
+            <audio id="recordedAudio"></audio>
+            <div id="custom-audio-controls" style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <button id="play-sync-btn">▶️ 듣기</button>
+                <button id="downloadBtn" style="display: none; padding: 8px 15px; font-size: 14px; background-color: #007bff;">💾 다운로드</button>
+            </div>
           </div>
           <div id="mic-error-message" style="color: #ffc107; margin-top: 15px; font-weight: bold; display: none;"></div>
         </footer>
@@ -423,6 +426,7 @@
         let wakeLock = null;
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
+        let isSyncPlaying = false; // 싱크 재생 상태 변수
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -432,7 +436,7 @@
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
-        let echoSettingsBtn, audioSettingsPanel, subControlsContainer;
+        let echoSettingsBtn, audioSettingsPanel, subControlsContainer, playSyncBtn;
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -459,6 +463,7 @@
             echoSettingsBtn = document.getElementById('echo-settings-btn');
             audioSettingsPanel = document.getElementById('audio-settings-panel');
             subControlsContainer = document.getElementById('sub-controls-container');
+            playSyncBtn = document.getElementById('play-sync-btn');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -497,6 +502,8 @@
                 const isVisible = audioSettingsPanel.style.display === 'block';
                 audioSettingsPanel.style.display = isVisible ? 'none' : 'block';
             });
+            
+            playSyncBtn.addEventListener('click', toggleSyncPlay);
 
             document.getElementById('power-guide').addEventListener('click', () => {
                 alert(
@@ -583,7 +590,7 @@
             
             if (player) {
                 player.cueVideoById(songData.videoId);
-                player.setVolume(100); // 【수정】 새 노래 준비 시 볼륨을 100%로 복원
+                player.setVolume(100);
             }
 
             startBtn.disabled = false;
@@ -800,6 +807,21 @@
             }, delay);
         }
         
+        function toggleSyncPlay() {
+            const audioPlayer = document.getElementById('recordedAudio');
+            if (!audioPlayer || !player) return;
+
+            if (isSyncPlaying) {
+                audioPlayer.pause();
+                player.pauseVideo();
+            } else {
+                player.seekTo(audioPlayer.currentTime, true);
+                player.setVolume(50);
+                player.playVideo();
+                audioPlayer.play();
+            }
+        }
+
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -808,7 +830,6 @@
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
                     resetState();
-                    isStoppingManually = false;
                     return; 
                 }
                 
@@ -817,8 +838,7 @@
                 resultArea.querySelector('h4').textContent = '녹음 완료! (결과 확인)';
                 const audioPlayer = document.getElementById('recordedAudio');
                 const downloadBtn = document.getElementById('downloadBtn');
-                audioPlayer.style.display = 'block';
-
+                
                 const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
                 audioPlayer.src = url;
@@ -830,26 +850,27 @@
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
+                
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
 
-                audioPlayer.addEventListener('play', () => {
-                    if (player) {
-                        player.setVolume(50); // 【수정】 반주 볼륨 50%로 조절
-                        player.seekTo(audioPlayer.currentTime, true);
-                        player.playVideo();
-                    }
-                });
-
-                audioPlayer.addEventListener('pause', () => {
-                    if (player) {
+                audioPlayer.onplay = () => {
+                    isSyncPlaying = true;
+                    playSyncBtn.textContent = '⏸️ 중지';
+                };
+                audioPlayer.onpause = () => {
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
                         player.pauseVideo();
                     }
-                });
-                
-                audioPlayer.addEventListener('seeked', () => {
-                    if (player) {
-                        player.seekTo(audioPlayer.currentTime, true);
-                    }
-                });
+                };
+                audioPlayer.onended = () => {
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    player.seekTo(0, true);
+                    player.pauseVideo();
+                };
             };
         }
 
@@ -869,13 +890,13 @@
         
         function resetState() {
             recordedChunks = [];
+            isSyncPlaying = false;
             const resultArea = document.getElementById('resultArea');
             resultArea.style.display = 'none';
             resultArea.querySelector('h4').textContent = '';
             const recordedAudio = document.getElementById('recordedAudio');
             if (recordedAudio) {
                 recordedAudio.src = "";
-                recordedAudio.style.display = 'none';
             }
             document.getElementById('downloadBtn').style.display = 'none';
             clearVisualizer();
