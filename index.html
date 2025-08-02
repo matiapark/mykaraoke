@@ -547,15 +547,12 @@
         }
         
         function onPlayerStateChange(event) {
-            // 싱크 재생 준비 상태에서 영상이 재생을 시작하면, 오디오 재생을 시작
             if (event.data === YT.PlayerState.PLAYING && isPreparingSyncPlay) {
                 isPreparingSyncPlay = false;
                 document.getElementById('recordedAudio').play();
             }
 
-            // 재생이 끝났을 때의 로직
             if (event.data === YT.PlayerState.ENDED) {
-                // 싱크 재생 중 영상이 끝나면 오디오도 정지 및 초기화
                 if (isSyncPlaying) {
                     const audioPlayer = document.getElementById('recordedAudio');
                     audioPlayer.pause();
@@ -567,12 +564,10 @@
                     return; 
                 }
                 
-                // 녹음 중 노래가 끝나면 녹음 중지
                 if (isSinging) {
                     stopSinging(false); 
                 }
                 
-                // 플레이리스트 모드에서 다음 곡으로
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -848,6 +843,12 @@
                 audioPlayer.pause();
                 player.pauseVideo();
             } else {
+                const SYNC_OFFSET = 2.0; // 2초 오프셋
+                // 처음 재생하는 경우(currentTime이 거의 0에 가까울 때)에만 오프셋 적용
+                if (audioPlayer.currentTime < 1.0) {
+                    audioPlayer.currentTime = SYNC_OFFSET;
+                }
+                
                 isPreparingSyncPlay = true;
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
@@ -902,6 +903,8 @@
                         player.pauseVideo();
                     }
                 };
+                // 'ended' 이벤트는 onPlayerStateChange에서 처리하므로 중복 로직 방지를 위해 비워둠
+                audioPlayer.onended = () => {};
             };
         }
 
