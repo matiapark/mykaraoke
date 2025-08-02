@@ -555,13 +555,15 @@
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     const audioPlayer = document.getElementById('recordedAudio');
-                    audioPlayer.pause();
+                    if (!audioPlayer.paused) {
+                      audioPlayer.pause();
+                    }
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
                     player.seekTo(0, true);
                     player.pauseVideo();
-                    return; 
+                    return;
                 }
                 
                 if (isSinging) {
@@ -843,8 +845,7 @@
                 audioPlayer.pause();
                 player.pauseVideo();
             } else {
-                const SYNC_OFFSET = 2.0; // 2초 오프셋
-                // 처음 재생하는 경우(currentTime이 거의 0에 가까울 때)에만 오프셋 적용
+                const SYNC_OFFSET = 2.0;
                 if (audioPlayer.currentTime < 1.0) {
                     audioPlayer.currentTime = SYNC_OFFSET;
                 }
@@ -903,8 +904,13 @@
                         player.pauseVideo();
                     }
                 };
-                // 'ended' 이벤트는 onPlayerStateChange에서 처리하므로 중복 로직 방지를 위해 비워둠
-                audioPlayer.onended = () => {};
+                
+                audioPlayer.onended = () => {
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    player.seekTo(0, true);
+                    player.pauseVideo();
+                };
             };
         }
 
