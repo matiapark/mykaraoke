@@ -769,13 +769,14 @@
         async function stopSinging(manual = false) {
             if (!isSinging) return;
             isStoppingManually = manual;
-            isSinging = false; // 상태를 먼저 변경하여 중복 호출 방지
+            isSinging = false;
             
+            if (player) player.stopVideo();
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
-            if (player) player.stopVideo();
-
+            
             await cleanupAudioResources();
         }
 
@@ -808,12 +809,17 @@
             
             stopSyncPlay();
 
-            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
             
             if (audioContext && audioContext.state !== 'closed') {
                 await audioContext.close();
             }
-            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                audioStream = null;
+            }
             
             if (wakeLock) {
                 try { await wakeLock.release(); } catch(e) {}
@@ -823,7 +829,6 @@
             disableNoSleep();
 
             pitch = null;
-            audioStream = null;
             mediaRecorder = null;
             audioContext = null;
             isSinging = false;
@@ -883,9 +888,6 @@
                 const state = player.getPlayerState();
                 if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
                     player.pauseVideo();
-                }
-                if(state === YT.PlayerState.ENDED) {
-                    player.seekTo(0, true);
                 }
             }
 
