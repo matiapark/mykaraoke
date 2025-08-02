@@ -429,7 +429,7 @@
         
         let isSyncPlaying = false;
         let syncAnimationId = null;
-        let syncMasterTime = 0;
+        let isPreparingSyncPlay = false;
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -549,6 +549,12 @@
         }
         
         function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING && isPreparingSyncPlay) {
+                isPreparingSyncPlay = false;
+                document.getElementById('recordedAudio').play();
+                runSyncLoop();
+            }
+
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     stopSyncPlay();
@@ -827,22 +833,21 @@
             if (!audioPlayer || !player) return;
 
             if (isSyncPlaying) {
-                player.pauseVideo();
-                audioPlayer.pause();
-                stopSyncPlay(); // Use the dedicated stop function
+                stopSyncPlay();
             } else {
+                playSyncBtn.textContent = '...';
                 const SYNC_OFFSET = 2.0;
-                let startTime = (syncMasterTime < 1.0) ? SYNC_OFFSET : syncMasterTime;
+                let startTime = audioPlayer.currentTime;
+
+                if (startTime < 1.0) {
+                    startTime = SYNC_OFFSET;
+                }
                 
                 audioPlayer.currentTime = startTime;
+                isPreparingSyncPlay = true;
                 player.seekTo(startTime, true);
                 player.setVolume(40);
                 player.playVideo();
-                audioPlayer.play();
-                
-                isSyncPlaying = true;
-                playSyncBtn.textContent = '⏸️ 중지';
-                runSyncLoop();
             }
         }
         
@@ -852,19 +857,13 @@
                 return;
             }
             const audioPlayer = document.getElementById('recordedAudio');
-            syncMasterTime = audioPlayer.currentTime;
             const videoTime = player.getCurrentTime();
-            const diff = syncMasterTime - videoTime;
+            const diff = audioPlayer.currentTime - videoTime;
 
             if (Math.abs(diff) > 0.25) {
-                player.seekTo(syncMasterTime, true);
+                player.seekTo(audioPlayer.currentTime, true);
             }
-
-            if (audioPlayer.ended) {
-                stopSyncPlay();
-            } else {
-                syncAnimationId = requestAnimationFrame(runSyncLoop);
-            }
+            syncAnimationId = requestAnimationFrame(runSyncLoop);
         }
 
         function stopSyncPlay() {
@@ -876,12 +875,11 @@
             
             if (player) {
                 player.pauseVideo();
-                // A short timeout can make the final seekTo more reliable
                 setTimeout(() => player.seekTo(0, true), 100);
             }
 
             isSyncPlaying = false;
-            syncMasterTime = 0;
+            isPreparingSyncPlay = false;
             if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
         }
 
@@ -915,6 +913,19 @@
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
+                
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
+
+                audioPlayer.onplay = () => {
+                    isSyncPlaying = true;
+                    playSyncBtn.textContent = '⏸️ 중지';
+                };
+                audioPlayer.onpause = () => {
+                    if(isSyncPlaying){ 
+                        stopSyncPlay();
+                    }
+                };
             };
         }
 
@@ -934,7 +945,7 @@
         
         function resetState() {
             recordedChunks = [];
-            stopSyncPlay(); // Make sure sync loop is stopped and states are reset
+            stopSyncPlay();
             const resultArea = document.getElementById('resultArea');
             resultArea.style.display = 'none';
             resultArea.querySelector('h4').textContent = '';
