@@ -426,7 +426,7 @@
         let wakeLock = null;
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
-        let isSyncPlaying = false; // 싱크 재생 상태 변수
+        let isSyncPlaying = false;
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -547,9 +547,19 @@
         
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.ENDED) {
+                if (isSyncPlaying) {
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    return; 
+                }
+                
                 if (isSinging) {
                     stopSinging(false); 
                 }
+                
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -825,8 +835,11 @@
             } else {
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
+                // 유튜브 재생 시작 후 약간의 지연을 주어 오디오와 싱크를 맞춤
+                setTimeout(() => {
+                    audioPlayer.play();
+                }, 150); // 150ms 지연 (네트워크 상태에 따라 조절 가능)
                 player.playVideo();
-                audioPlayer.play();
             }
         }
 
@@ -846,7 +859,6 @@
                 resultArea.style.display = 'block';
                 resultArea.querySelector('h4').textContent = '녹음 완료! (결과 확인)';
                 const audioPlayer = document.getElementById('recordedAudio');
-                const downloadBtn = document.getElementById('downloadBtn');
                 
                 const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                 const url = URL.createObjectURL(blob);
@@ -854,7 +866,7 @@
 
                 customAudioControls.style.display = 'flex';
                 
-                downloadBtn.onclick = () => {
+                document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
                     a.download = `나의노래방-${songForRecording.title.trim()}-${songForRecording.artist.trim()}.webm`;
@@ -877,10 +889,7 @@
                     }
                 };
                 audioPlayer.onended = () => {
-                    isSyncPlaying = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true);
-                    player.pauseVideo();
+                    // 이 이벤트는 이제 onPlayerStateChange에서 처리하므로 비워두거나 보조용으로 사용
                 };
             };
         }
