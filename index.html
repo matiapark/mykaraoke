@@ -556,13 +556,13 @@
                     runAutoGainControl();
                 }
             }
-
+            
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     stopSyncPlay(true);
                 } else if (isSinging) {
                     stopSinging(false); 
-                } else if (isPlaylistMode && !isSinging) { // [수정] 노래 부르기가 아닐 때만 다음 곡으로
+                } else if (isPlaylistMode && !isSinging) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
@@ -592,7 +592,6 @@
                 headphoneGuide.style.display = 'none';
             }
             
-            await cleanupAudioResources();
             resetState();
             
             isPlaylistMode = isPlaylist;
@@ -762,15 +761,18 @@
             adjustGain();
         }
 
-        async function stopSinging(manual = false) {
+        function stopSinging(manual = false) {
             if (!isSinging && !isWaitingForRecordingStart) return;
             isStoppingManually = manual;
             isSinging = false;
             isWaitingForRecordingStart = false;
             
             if (player) player.stopVideo();
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
+            } else {
+                cleanupAudioResources();
             }
         }
 
