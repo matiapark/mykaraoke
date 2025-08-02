@@ -369,10 +369,10 @@
         </div>
         
         <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px; position: relative;">
-            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; left: 20px;">🎛️ 에코</button>
-            <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8; margin-left: auto;">
+            <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
                 <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
+            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; right: 20px;">🎛️ 에코</button>
         </div>
 
         <footer>
@@ -398,7 +398,7 @@
           </div>
 
           <div id="resultArea" style="display:none;">
-            <h4>녹음 완료!</h4>
+            <h4>녹음 완료! (결과 확인)</h4>
             <audio id="recordedAudio" controls style="width: 100%;"></audio>
             <button id="downloadBtn" style="display: none;">💾 다운로드</button>
           </div>
@@ -813,7 +813,7 @@
                 
                 const resultArea = document.getElementById('resultArea');
                 resultArea.style.display = 'block';
-                resultArea.querySelector('h4').textContent = '녹음 완료!';
+                resultArea.querySelector('h4').textContent = '녹음 완료! (결과 확인)';
                 const audioPlayer = document.getElementById('recordedAudio');
                 const downloadBtn = document.getElementById('downloadBtn');
                 audioPlayer.style.display = 'block';
@@ -829,6 +829,25 @@
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
+
+                audioPlayer.addEventListener('play', () => {
+                    if (player) {
+                        player.seekTo(audioPlayer.currentTime, true);
+                        player.playVideo();
+                    }
+                });
+
+                audioPlayer.addEventListener('pause', () => {
+                    if (player) {
+                        player.pauseVideo();
+                    }
+                });
+                
+                audioPlayer.addEventListener('seeked', () => {
+                    if (player) {
+                        player.seekTo(audioPlayer.currentTime, true);
+                    }
+                });
             };
         }
 
