@@ -369,10 +369,10 @@
         </div>
         
         <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px; position: relative;">
-            <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8;">
+            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; left: 20px;">🎛️ 에코</button>
+            <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8; margin-left: auto;">
                 <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
-            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; right: 20px;">🎛️ 에코</button>
         </div>
 
         <footer>
@@ -583,6 +583,7 @@
             
             if (player) {
                 player.cueVideoById(songData.videoId);
+                player.setVolume(100); // 【수정】 새 노래 준비 시 볼륨을 100%로 복원
             }
 
             startBtn.disabled = false;
@@ -832,6 +833,7 @@
 
                 audioPlayer.addEventListener('play', () => {
                     if (player) {
+                        player.setVolume(50); // 【수정】 반주 볼륨 50%로 조절
                         player.seekTo(audioPlayer.currentTime, true);
                         player.playVideo();
                     }
