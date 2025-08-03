@@ -573,6 +573,7 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
+                    player.seekTo(0, true); // Rewind the video to 0
                     return; 
                 }
                 
