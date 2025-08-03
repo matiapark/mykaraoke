@@ -413,7 +413,7 @@
     <div id="keep-awake-alert">화면이 어두워지면 (슬립모드 진입) 화면이<br>꺼지지 않도록 주기적으로 터치해주세요!</div>
 
     <video id="noSleepVideo" loop playsinline muted style="position:absolute;left:-100px;top:-100px;width:1px;height:1px;opacity:0;"></video>
-    <audio id="startSfx" src="https://touch-game-s3.amazonaws.com/final_success.mp3" preload="auto"></audio>
+    <audio id="startSfx" src="https://touch-game.s3.ap-northeast-2.amazonaws.com/final_success.mp3" preload="auto"></audio>
 
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
@@ -426,9 +426,7 @@
         let wakeLock = null;
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
-        
-        let isSyncPlaying = false;
-        let isWaitingForRecordingStart = false;
+        let isSyncPlaying = false, shouldStartRecordingOnPlay = false, shouldPlayAudioOnPlay = false;
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -548,21 +546,41 @@
         }
         
         function onPlayerStateChange(event) {
+            // Logic to start recording or synchronized playback when the video starts playing
             if (event.data === YT.PlayerState.PLAYING) {
-                if (isWaitingForRecordingStart) {
-                    isWaitingForRecordingStart = false;
+                if (shouldStartRecordingOnPlay) {
+                    shouldStartRecordingOnPlay = false; // Reset flag
                     mediaRecorder.start();
                     getPitch();
                     runAutoGainControl();
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                }
+                if (shouldPlayAudioOnPlay) {
+                    shouldPlayAudioOnPlay = false; // Reset flag
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    if (audioPlayer) {
+                        audioPlayer.play();
+                    }
                 }
             }
-
+        
+            // Logic for when the video ends
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
-                    stopSyncPlay(true);
-                } else if (isSinging) {
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    return; 
+                }
+                
+                if (isSinging) {
                     stopSinging(false); 
-                } else if (isPlaylistMode && !isSinging) {
+                }
+                
+                if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
@@ -642,9 +660,7 @@
                 document.getElementById('resultArea').style.display = 'block';
                 document.querySelector('#resultArea h4').textContent = '녹음 중...';
                 
-                if (!audioContext || audioContext.state === 'closed') {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const source = audioContext.createMediaStreamSource(audioStream);
 
                 gainNode = audioContext.createGain();
@@ -663,12 +679,9 @@
                 mediaRecorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
                 setupMediaRecorder(currentSongData); 
 
-                isWaitingForRecordingStart = true;
+                shouldStartRecordingOnPlay = true;
                 player.playVideo();
                 enableNoSleep();
-                
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
 
             } catch (err) {
                 console.error("오디오 시작 실패:", err);
@@ -679,7 +692,6 @@
         }
 
         function setupDelayEffect(sourceNode, outputNode) {
-            if (!audioContext) return;
             delayNode = audioContext.createDelay(2.0);
             feedbackGain = audioContext.createGain();
             wetGain = audioContext.createGain();
@@ -763,25 +775,22 @@
         }
 
         async function stopSinging(manual = false) {
-            if (!isSinging && !isWaitingForRecordingStart) return;
+            if (!isSinging) return;
             isStoppingManually = manual;
-            isSinging = false;
-            isWaitingForRecordingStart = false;
-            
-            if (player) player.stopVideo();
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-            } else {
-                await cleanupAudioResources();
             }
+            if (player) player.stopVideo();
+            await cleanupAudioResources();
         }
 
         async function returnToSearchView() {
             if (player) player.stopVideo();
-            stopSyncPlay(true);
             
             const audioPlayer = document.getElementById('recordedAudio');
             if(audioPlayer) {
+                audioPlayer.pause();
                 audioPlayer.src = "";
             }
 
@@ -803,12 +812,12 @@
             animationFrameId = null;
             agcAnimationId = null;
             
-            stopSyncPlay(true);
-
-            if (audioStream) {
-                audioStream.getTracks().forEach(track => track.stop());
-                audioStream = null;
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            
+            if (audioContext && audioContext.state !== 'closed') {
+                await audioContext.close();
             }
+            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
             
             if (wakeLock) {
                 try { await wakeLock.release(); } catch(e) {}
@@ -818,8 +827,10 @@
             disableNoSleep();
 
             pitch = null;
+            audioStream = null;
+            mediaRecorder = null;
+            audioContext = null;
             isSinging = false;
-            isWaitingForRecordingStart = false;
             
             const delay = isStoppingManually ? 500 : 0;
             setTimeout(() => {
@@ -834,39 +845,14 @@
             if (!audioPlayer || !player) return;
 
             if (isSyncPlaying) {
-                stopSyncPlay(false);
+                audioPlayer.pause();
+                player.pauseVideo();
             } else {
-                audioPlayer.play();
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
+                shouldPlayAudioOnPlay = true; // Flag to play audio on video play
                 player.playVideo();
             }
-        }
-        
-        function stopSyncPlay(resetTime = true) {
-            const audioPlayer = document.getElementById('recordedAudio');
-            audioPlayer.pause();
-            
-            if (player && typeof player.getPlayerState === 'function') {
-                const state = player.getPlayerState();
-                if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
-                    player.pauseVideo();
-                }
-            }
-            
-            if (resetTime) {
-                audioPlayer.currentTime = 0;
-                if (player) {
-                    setTimeout(() => {
-                        if (player && typeof player.seekTo === 'function') {
-                            player.seekTo(0, true);
-                        }
-                    }, 100);
-                }
-            }
-
-            isSyncPlaying = false;
-            if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
         }
 
         function setupMediaRecorder(songForRecording) {
@@ -875,7 +861,6 @@
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
             mediaRecorder.onstop = () => {
-                cleanupAudioResources();
                 if (isStoppingManually) {
                     resetState();
                     return; 
@@ -900,18 +885,23 @@
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 };
                 recordedChunks = [];
+                
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
 
                 audioPlayer.onplay = () => {
                     isSyncPlaying = true;
                     playSyncBtn.textContent = '⏸️ 중지';
                 };
                 audioPlayer.onpause = () => {
-                   if (isSyncPlaying) {
-                        stopSyncPlay(false);
-                   }
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        player.pauseVideo();
+                    }
                 };
                 audioPlayer.onended = () => {
-                    stopSyncPlay(true);
+                    // 이 이벤트는 이제 onPlayerStateChange에서 처리하므로 비워두거나 보조용으로 사용
                 };
             };
         }
@@ -932,7 +922,7 @@
         
         function resetState() {
             recordedChunks = [];
-            stopSyncPlay(true);
+            isSyncPlaying = false;
             const resultArea = document.getElementById('resultArea');
             resultArea.style.display = 'none';
             resultArea.querySelector('h4').textContent = '';
