@@ -879,7 +879,9 @@
                 isVideoFinished = false;
                 isAudioFinished = false;
                 
-                player.seekTo(audioPlayer.currentTime, true);
+                if (audioPlayer.currentTime > 0) {
+                    player.seekTo(audioPlayer.currentTime, true);
+                }
                 player.setVolume(40);
                 shouldPlayAudioOnPlay = true;
                 player.playVideo();
