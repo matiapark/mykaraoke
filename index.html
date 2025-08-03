@@ -340,7 +340,7 @@
           <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
       </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
-          <button id="start-playlist-btn"▶️ 플레이리스트 시작</button>
+          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
       </div>
       <div id="search-results-container">
           <ul id="search-results">
@@ -555,12 +555,14 @@
                     runAutoGainControl();
                     startBtn.disabled = true;
                     stopBtn.disabled = false;
+                    keepAwakeAlert.style.display = 'block'; // Show sleep mode alert
                 }
                 if (shouldPlayAudioOnPlay) {
                     shouldPlayAudioOnPlay = false; // Reset flag
                     const audioPlayer = document.getElementById('recordedAudio');
                     if (audioPlayer) {
                         audioPlayer.play();
+                        keepAwakeAlert.style.display = 'block'; // Show sleep mode alert
                     }
                 }
             }
@@ -573,8 +575,8 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true);
-                    player.pauseVideo();
+                    player.seekTo(0); // Reset YouTube video to 0 seconds
+                    keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert
                     return; 
                 }
                 
@@ -629,6 +631,7 @@
             startBtn.disabled = false;
             stopBtn.disabled = true;
             isPreparing = false;
+            keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert initially
         }
 
         async function startSinging() {
@@ -690,6 +693,7 @@
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
+                keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert on error
             }
         }
 
@@ -785,6 +789,7 @@
             }
             if (player) player.stopVideo();
             await cleanupAudioResources();
+            keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert when stopping
         }
 
         async function returnToSearchView() {
@@ -806,6 +811,7 @@
             searchView.style.display = 'block';
             searchInput.value = '';
             switchView('search');
+            keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert
         }
 
         async function cleanupAudioResources() {
@@ -849,6 +855,7 @@
             if (isSyncPlaying) {
                 audioPlayer.pause();
                 player.pauseVideo();
+                keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert
             } else {
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
