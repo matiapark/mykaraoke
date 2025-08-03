@@ -427,6 +427,7 @@
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
         let isSyncPlaying = false, shouldStartRecordingOnPlay = false, shouldPlayAudioOnPlay = false;
+        let keepAwakeInterval; // 슬립모드 알림 체크를 위한 인터벌 변수 추가
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -522,15 +523,14 @@
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
 
-            // 슬립모드 경고 메시지 활성화 (1분마다 표시)
-            setInterval(() => {
-                if (isSinging) {
+            // 슬립모드 경고 메시지 활성화 (1초마다 상태 체크)
+            keepAwakeInterval = setInterval(() => {
+                if (isSinging || isSyncPlaying) {
                     keepAwakeAlert.style.display = 'block';
-                    setTimeout(() => {
-                        if (isSinging) keepAwakeAlert.style.display = 'none';
-                    }, 3000);
+                } else {
+                    keepAwakeAlert.style.display = 'none';
                 }
-            }, 60000);
+            }, 1000);
         };
 
         function handleVisibilityChange() {
@@ -556,10 +556,9 @@
         }
         
         function onPlayerStateChange(event) {
-            // Logic to start recording or synchronized playback when the video starts playing
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
-                    shouldStartRecordingOnPlay = false; // Reset flag
+                    shouldStartRecordingOnPlay = false;
                     mediaRecorder.start();
                     getPitch();
                     runAutoGainControl();
@@ -567,7 +566,7 @@
                     stopBtn.disabled = false;
                 }
                 if (shouldPlayAudioOnPlay) {
-                    shouldPlayAudioOnPlay = false; // Reset flag
+                    shouldPlayAudioOnPlay = false;
                     const audioPlayer = document.getElementById('recordedAudio');
                     if (audioPlayer) {
                         audioPlayer.play();
@@ -575,7 +574,6 @@
                 }
             }
         
-            // Logic for when the video ends
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     const audioPlayer = document.getElementById('recordedAudio');
@@ -583,6 +581,7 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
+                    player.seekTo(0, true); // 추가: 동영상 0초로 이동
                     return; 
                 }
                 
@@ -841,6 +840,7 @@
             mediaRecorder = null;
             audioContext = null;
             isSinging = false;
+            isSyncPlaying = false;
             
             const delay = isStoppingManually ? 500 : 0;
             setTimeout(() => {
@@ -857,12 +857,16 @@
             if (isSyncPlaying) {
                 audioPlayer.pause();
                 player.pauseVideo();
-                player.seekTo(0, true); // 추가: 재생 중지 시 0초로 이동
+                player.seekTo(0, true); // 재생 중지 시 0초로 이동
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
             } else {
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
-                shouldPlayAudioOnPlay = true; // Flag to play audio on video play
+                shouldPlayAudioOnPlay = true;
                 player.playVideo();
+                isSyncPlaying = true;
+                playSyncBtn.textContent = '⏸️ 중지';
             }
         }
 
@@ -904,6 +908,7 @@
                     isSyncPlaying = true;
                     playSyncBtn.textContent = '⏸️ 중지';
                 };
+                
                 audioPlayer.onpause = () => {
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
@@ -911,8 +916,13 @@
                         player.pauseVideo();
                     }
                 };
+                
+                // 추가: 재생 완료 시 동영상 0초로 이동
                 audioPlayer.onended = () => {
-                    // 이 이벤트는 이제 onPlayerStateChange에서 처리하므로 비워두거나 보조용으로 사용
+                    isSyncPlaying = false;
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    player.seekTo(0, true);
+                    player.pauseVideo();
                 };
             };
         }
