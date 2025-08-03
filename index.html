@@ -427,6 +427,11 @@
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
         let isSyncPlaying = false, shouldStartRecordingOnPlay = false, shouldPlayAudioOnPlay = false;
+        
+        // ★★★ 1. '둘 다 종료' 상태를 추적할 변수 추가 ★★★
+        let isVideoFinished = false;
+        let isAudioFinished = false;
+
         let keepAwakeInterval; 
 
         // Web Audio API 관련 변수
@@ -523,6 +528,7 @@
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
 
+            // 슬립모드 경고 메시지 활성화 (1초마다 상태 체크)
             keepAwakeInterval = setInterval(() => {
                 if (isSinging || isSyncPlaying) {
                     keepAwakeAlert.style.display = 'block';
@@ -554,33 +560,24 @@
             });
         }
         
-        // '듣기' 재생과 관련된 모든 것을 초기화하는 함수
         function resetSyncPlay() {
-            const wasPlaying = isSyncPlaying;
-            isSyncPlaying = false; // 중복 호출을 막기 위해 상태를 먼저 변경
+            if (!isSyncPlaying) return;
 
-            if (wasPlaying) {
-                const audioPlayer = document.getElementById('recordedAudio');
-                if (audioPlayer) {
-                    audioPlayer.pause();
-                    audioPlayer.currentTime = 0;
-                }
-                // stopVideo()를 사용하여 플레이어를 완벽한 0초 상태로 만듦
-                if (player && typeof player.stopVideo === 'function') {
-                    player.stopVideo();
-                }
-                if (playSyncBtn) {
-                    playSyncBtn.textContent = '▶️ 듣기';
-                }
+            const audioPlayer = document.getElementById('recordedAudio');
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
             }
+            if (player) {
+                player.stopVideo();
+            }
+            isSyncPlaying = false;
+            if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
         }
 
-        // ★★★ 최종 수정: onPlayerStateChange 함수 ★★★
-        // 모든 종료 판단을 여기서만 담당하도록 단순화
         function onPlayerStateChange(event) {
-            // 영상 재생이 시작될 때
             if (event.data === YT.PlayerState.PLAYING) {
-                if (shouldStartRecordingOnPlay) { // '시작'으로 인한 재생
+                if (shouldStartRecordingOnPlay) {
                     shouldStartRecordingOnPlay = false;
                     mediaRecorder.start();
                     getPitch();
@@ -588,26 +585,29 @@
                     startBtn.disabled = true;
                     stopBtn.disabled = false;
                 }
-                if (shouldPlayAudioOnPlay) { // '듣기'로 인한 재생
+                if (shouldPlayAudioOnPlay) {
                     shouldPlayAudioOnPlay = false;
-                    document.getElementById('recordedAudio')?.play();
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    if (audioPlayer) {
+                        audioPlayer.play();
+                    }
                 }
             }
         
-            // 영상 재생이 종료될 때
             if (event.data === YT.PlayerState.ENDED) {
-                // '듣기' 중이었다면, 영상 종료가 모든 것의 종료를 의미하므로 초기화
+                // ★★★ '듣기' 중 영상이 끝나면 깃발 올리고 확인 ★★★
                 if (isSyncPlaying) {
-                    resetSyncPlay();
+                    isVideoFinished = true;
+                    if (isVideoFinished && isAudioFinished) {
+                        resetSyncPlay();
+                    }
                     return; 
                 }
                 
-                // '시작(노래 부르기)' 중이었다면 녹음 중단
                 if (isSinging) {
                     stopSinging(false); 
                 }
                 
-                // 플레이리스트 모드였다면 다음 곡 준비
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -869,27 +869,27 @@
             }, delay);
         }
         
+        // ★★★ '듣기' 시작 시 깃발 리셋 ★★★
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
             if (!audioPlayer || !player || !audioPlayer.src) return;
 
             if (audioPlayer.paused) {
-                isSyncPlaying = true;
-                shouldPlayAudioOnPlay = true;
-                player.setVolume(40);
+                // '듣기' 시작 시, 두 깃발을 리셋합니다.
+                isVideoFinished = false;
+                isAudioFinished = false;
                 
                 if (audioPlayer.currentTime > 0) {
                     player.seekTo(audioPlayer.currentTime, true);
                 }
-                
+                player.setVolume(40);
+                shouldPlayAudioOnPlay = true;
                 player.playVideo();
             } else {
                 audioPlayer.pause();
             }
         }
 
-        // ★★★ 최종 수정: setupMediaRecorder 함수 ★★★
-        // audioPlayer의 이벤트 핸들러를 단순화
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -924,22 +924,26 @@
                 playSyncBtn.textContent = '▶️ 듣기';
 
                 audioPlayer.onplay = () => {
+                    isSyncPlaying = true;
                     playSyncBtn.textContent = '⏸️ 중지';
                 };
                 
-                // 수동으로 일시정지하면 영상도 일시정지
                 audioPlayer.onpause = () => {
-                    if (isSyncPlaying) { // '듣기' 중에만 영상 제어
-                        player.pauseVideo();
+                    if(isSyncPlaying){
                         isSyncPlaying = false;
+                        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                            player.pauseVideo();
+                        }
                     }
                     playSyncBtn.textContent = '▶️ 듣기';
                 };
                 
-                // 오디오가 끝나면 아무것도 하지 않음.
-                // 모든 종료 처리는 onPlayerStateChange가 담당.
+                // ★★★ '듣기' 오디오가 끝나면 깃발 올리고 확인 ★★★
                 audioPlayer.onended = () => {
-                    // isSyncPlaying 상태를 여기서 바꾸지 않는 것이 핵심!
+                    isAudioFinished = true;
+                    if (isVideoFinished && isAudioFinished) {
+                        resetSyncPlay();
+                    }
                 };
             };
         }
