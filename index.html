@@ -340,7 +340,7 @@
           <button id="show-playlist-btn"><span class="playlist-icon">🎶</span> 연속 부르기</button>
       </div>
       <div id="playlist-controls" style="display: none; text-align: center;">
-          <button id="start-playlist-btn">▶️ 플레이리스트 시작</button>
+          <button id="start-playlist-btn"▶️ 플레이리스트 시작</button>
       </div>
       <div id="search-results-container">
           <ul id="search-results">
@@ -560,7 +560,6 @@
                     shouldPlayAudioOnPlay = false; // Reset flag
                     const audioPlayer = document.getElementById('recordedAudio');
                     if (audioPlayer) {
-                        // Play audio immediately when the video player signals it has started.
                         audioPlayer.play();
                     }
                 }
@@ -574,14 +573,17 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true);   // Rewind the video to 0
-                    player.pauseVideo(); // Explicitly pause the video
+                    if (keepAwakeAlert) keepAwakeAlert.style.display = 'none';
+                    player.seekTo(0, true);
+                    player.pauseVideo();
                     return; 
                 }
                 
                 if (isSinging) {
                     stopSinging(false); 
-                } else if (isPlaylistMode) { // Note: 'else if' prevents auto-advancing after recording
+                }
+                
+                if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
@@ -646,7 +648,6 @@
                     noSleep.enable();
                 }
 
-                // Show the sleep mode alert
                 if (keepAwakeAlert) keepAwakeAlert.style.display = 'block';
 
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } };
@@ -692,7 +693,7 @@
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
-                if (keepAwakeAlert) keepAwakeAlert.style.display = 'none'; // Hide alert on error
+                if (keepAwakeAlert) keepAwakeAlert.style.display = 'none';
             }
         }
 
@@ -837,7 +838,6 @@
             audioContext = null;
             isSinging = false;
 
-            // Hide the sleep mode alert
             if (keepAwakeAlert) keepAwakeAlert.style.display = 'none';
             
             const delay = isStoppingManually ? 500 : 0;
@@ -853,9 +853,11 @@
             if (!audioPlayer || !player) return;
 
             if (isSyncPlaying) {
+                if (keepAwakeAlert) keepAwakeAlert.style.display = 'none';
                 audioPlayer.pause();
                 player.pauseVideo();
             } else {
+                if (keepAwakeAlert) keepAwakeAlert.style.display = 'block';
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
                 shouldPlayAudioOnPlay = true; // Flag to play audio on video play
