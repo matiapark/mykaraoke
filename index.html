@@ -569,8 +569,7 @@
                 audioPlayer.currentTime = 0;
             }
             if (player) {
-                player.seekTo(0, true);
-                player.pauseVideo();
+                player.stopVideo();
             }
             isSyncPlaying = false;
             if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
