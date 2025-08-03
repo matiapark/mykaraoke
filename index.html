@@ -579,9 +579,7 @@
                 
                 if (isSinging) {
                     stopSinging(false); 
-                }
-                
-                if (isPlaylistMode) {
+                } else if (isPlaylistMode) { // Note: 'else if' prevents auto-advancing after recording
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
@@ -646,6 +644,9 @@
                     noSleep.enable();
                 }
 
+                // Show the sleep mode alert
+                if (keepAwakeAlert) keepAwakeAlert.style.display = 'block';
+
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
@@ -689,6 +690,7 @@
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
+                if (keepAwakeAlert) keepAwakeAlert.style.display = 'none'; // Hide alert on error
             }
         }
 
@@ -832,6 +834,9 @@
             mediaRecorder = null;
             audioContext = null;
             isSinging = false;
+
+            // Hide the sleep mode alert
+            if (keepAwakeAlert) keepAwakeAlert.style.display = 'none';
             
             const delay = isStoppingManually ? 500 : 0;
             setTimeout(() => {
