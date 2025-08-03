@@ -575,20 +575,24 @@
             }
         
             if (event.data === YT.PlayerState.ENDED) {
-                if (isSyncPlaying) {
-                    const audioPlayer = document.getElementById('recordedAudio');
+                // '듣기' 모드 중 (isSyncPlaying) 비디오가 먼저 종료된 경우
+                const audioPlayer = document.getElementById('recordedAudio');
+                if (isSyncPlaying && audioPlayer) {
                     audioPlayer.pause();
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true); // 0초로 이동만 하고 재생하지 않음
+                    // 플레이어는 이미 ENDED 상태이지만, 확실하게 0초로 이동
+                    player.seekTo(0, true);
                     return; 
                 }
                 
+                // '시작' 모드로 노래가 종료된 경우
                 if (isSinging) {
                     stopSinging(false); 
                 }
                 
+                // 플레이리스트 다음 곡 재생
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -641,7 +645,7 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
             if (document.hidden) {
-                alert('앱이 백그라라운드에 있습니다. 화면을 켜고 다시 시도해주세요.');
+                alert('앱이 백그라운드에 있습니다. 화면을 켜고 다시 시도해주세요.');
                 return;
             }
 
@@ -852,21 +856,17 @@
         
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
-            if (!audioPlayer || !player) return;
+            if (!audioPlayer || !player || !audioPlayer.src) return;
 
-            if (isSyncPlaying) {
-                audioPlayer.pause();
-                player.pauseVideo();
-                player.seekTo(0, true); // 재생 중지 시 0초로 이동
-                isSyncPlaying = false;
-                playSyncBtn.textContent = '▶️ 듣기';
-            } else {
+            // 오디오가 멈춰있는 상태에서 버튼을 누르면 재생 (또는 이어하기)
+            if (audioPlayer.paused) {
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
                 shouldPlayAudioOnPlay = true;
                 player.playVideo();
-                isSyncPlaying = true;
-                playSyncBtn.textContent = '⏸️ 중지';
+            } else {
+            // 오디오가 재생 중인 상태에서 버튼을 누르면 일시정지
+                audioPlayer.pause();
             }
         }
 
@@ -917,12 +917,13 @@
                     }
                 };
                 
-                // 수정: 재생 완료 시 동영상 0초로 이동만 하고 재생하지 않음
+                // ★★★ 핵심 수정: '듣기' 오디오가 모두 재생 완료되었을 때의 동작
                 audioPlayer.onended = () => {
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
+                    // 동영상을 0초로 이동시키고, 만약을 위해 일시정지 상태로 만듭니다.
                     player.seekTo(0, true);
-                    player.pauseVideo(); // 재생하지 않도록 수정
+                    player.pauseVideo();
                 };
             };
         }
