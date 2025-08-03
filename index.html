@@ -537,16 +537,50 @@
         }
         
         function onPlayerStateChange(event) {
-            // Logic to start recording or synchronized playback when the video starts playing
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
-                    shouldStartRecordingOnPlay = false; // Reset flag
+                    shouldStartRecordingOnPlay = false;
                     mediaRecorder.start();
                     getPitch();
                     runAutoGainControl();
                     startBtn.disabled = true;
                     stopBtn.disabled = false;
                 }
+                if (shouldPlayAudioOnPlay) {
+                    shouldPlayAudioOnPlay = false;
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    if (audioPlayer) {
+                        audioPlayer.play();
+                    }
+                }
+            }
+
+            if (event.data === YT.PlayerState.ENDED) {
+                const audioPlayer = document.getElementById('recordedAudio');
+                if (audioPlayer) {
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                }
+                if (player && typeof player.seekTo === 'function') {
+                    player.seekTo(0, true);
+                }
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
+
+                if (isSinging) {
+                    stopSinging(false); 
+                }
+
+                if (isPlaylistMode) {
+                    currentPlaylistIndex++;
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
+                    }
+                    isFirstSongInPlaylist = false;
+                    prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
+                }
+            }
+        }
                 if (shouldPlayAudioOnPlay) {
                     shouldPlayAudioOnPlay = false; // Reset flag
                     const audioPlayer = document.getElementById('recordedAudio');
@@ -672,7 +706,6 @@
 
                 shouldStartRecordingOnPlay = true;
                 player.playVideo();
-                keepAwakeAlert.style.display = 'block';
                 enableNoSleep();
 
             } catch (err) {
@@ -817,7 +850,6 @@
             }
             noSleep.disable();
             disableNoSleep();
-            keepAwakeAlert.style.display = 'none';
 
             pitch = null;
             audioStream = null;
@@ -845,7 +877,6 @@
                 player.setVolume(40);
                 shouldPlayAudioOnPlay = true; // Flag to play audio on video play
                 player.playVideo();
-                keepAwakeAlert.style.display = 'block';
             }
         }
 
@@ -895,10 +926,12 @@
                     }
                 };
                 audioPlayer.onended = () => {
-            player.seekTo(0, true);  // 듣기 종료 시 YouTube 영상 0초로 이동
-            isSyncPlaying = false;
-            playSyncBtn.textContent = '▶️ 듣기';
-        };
+    isSyncPlaying = false;
+    playSyncBtn.textContent = '▶️ 듣기';
+    if (player && typeof player.seekTo === 'function') {
+        player.seekTo(0, true);
+    }
+};
             };
         }
 
