@@ -560,6 +560,7 @@
                     shouldPlayAudioOnPlay = false; // Reset flag
                     const audioPlayer = document.getElementById('recordedAudio');
                     if (audioPlayer) {
+                        // Play audio immediately when the video player signals it has started.
                         audioPlayer.play();
                     }
                 }
@@ -573,7 +574,8 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true); // Rewind the video to 0
+                    player.seekTo(0, true);   // Rewind the video to 0
+                    player.pauseVideo(); // Explicitly pause the video
                     return; 
                 }
                 
