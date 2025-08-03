@@ -137,11 +137,11 @@
         }
         
         #show-playlist-btn .playlist-icon {
-            color: #28a745; /* 초록색 음표 */
+            color: #28a745;
             font-style: normal;
         }
         .view-toggle-buttons button.active .playlist-icon {
-            color: #212529; /* 활성화 시 다른 글자와 동일한 색상 */
+            color: #212529;
         }
 
         #search-results-container {
@@ -291,12 +291,6 @@
             white-space: normal;
             line-height: 1.4;
             max-width: 90%;
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
         }
         
         @media (max-width: 600px) {
@@ -546,28 +540,23 @@
         }
         
         function onPlayerStateChange(event) {
-            // Logic to start recording or synchronized playback when the video starts playing
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
-                    shouldStartRecordingOnPlay = false; // Reset flag
+                    shouldStartRecordingOnPlay = false;
                     mediaRecorder.start();
                     getPitch();
                     runAutoGainControl();
                     startBtn.disabled = true;
                     stopBtn.disabled = false;
-                    keepAwakeAlert.style.display = 'block'; // Show sleep mode alert
+                    keepAwakeAlert.style.display = 'block';
                 }
                 if (shouldPlayAudioOnPlay) {
-                    shouldPlayAudioOnPlay = false; // Reset flag
+                    shouldPlayAudioOnPlay = false;
                     const audioPlayer = document.getElementById('recordedAudio');
-                    if (audioPlayer) {
-                        audioPlayer.play();
-                        keepAwakeAlert.style.display = 'block'; // Show sleep mode alert
-                    }
+                    if (audioPlayer) audioPlayer.play();
                 }
             }
         
-            // Logic for when the video ends
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
                     const audioPlayer = document.getElementById('recordedAudio');
@@ -575,13 +564,14 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0); // Reset YouTube video to 0 seconds
-                    keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert
-                    return; 
+                    player.seekTo(0);
+                    player.pauseVideo();
+                    keepAwakeAlert.style.display = 'none';
+                    return;
                 }
                 
                 if (isSinging) {
-                    stopSinging(false); 
+                    stopSinging(false);
                 }
                 
                 if (isPlaylistMode) {
@@ -589,7 +579,7 @@
                     if (currentPlaylistIndex >= currentPlaylist.length) {
                         currentPlaylistIndex = 0;
                     }
-                    isFirstSongInPlaylist = false; 
+                    isFirstSongInPlaylist = false;
                     prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
                 }
             }
@@ -631,7 +621,7 @@
             startBtn.disabled = false;
             stopBtn.disabled = true;
             isPreparing = false;
-            keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert initially
+            keepAwakeAlert.style.display = 'none';
         }
 
         async function startSinging() {
@@ -693,7 +683,7 @@
                 micErrorMessage.textContent = "마이크 사용이 거부되었습니다. 브라우저의 주소창 왼쪽 🔒을 눌러 권한을 허용해주세요.";
                 micErrorMessage.style.display = 'block';
                 isSinging = false;
-                keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert on error
+                keepAwakeAlert.style.display = 'none';
             }
         }
 
@@ -789,7 +779,7 @@
             }
             if (player) player.stopVideo();
             await cleanupAudioResources();
-            keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert when stopping
+            keepAwakeAlert.style.display = 'none';
         }
 
         async function returnToSearchView() {
@@ -811,7 +801,7 @@
             searchView.style.display = 'block';
             searchInput.value = '';
             switchView('search');
-            keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert
+            keepAwakeAlert.style.display = 'none';
         }
 
         async function cleanupAudioResources() {
@@ -847,7 +837,8 @@
                 if(subControlsContainer) subControlsContainer.style.display = 'flex';
             }, delay);
         }
-        
+
+        // ✅ 수정된 toggleSyncPlay 함수
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
             if (!audioPlayer || !player) return;
@@ -855,13 +846,27 @@
             if (isSyncPlaying) {
                 audioPlayer.pause();
                 player.pauseVideo();
-                keepAwakeAlert.style.display = 'none'; // Hide sleep mode alert
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
+                keepAwakeAlert.style.display = 'none';
             } else {
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
-                shouldPlayAudioOnPlay = true; // Flag to play audio on video play
-                player.playVideo();
+                audioPlayer.play();
+                isSyncPlaying = true;
+                playSyncBtn.textContent = '⏸️ 중지';
+                keepAwakeAlert.style.display = 'block';
             }
+
+            // 🔁 듣기 종료 시 유튜브 0초로 복귀
+            audioPlayer.onended = () => {
+                audioPlayer.currentTime = 0;
+                player.seekTo(0);
+                player.pauseVideo();
+                isSyncPlaying = false;
+                playSyncBtn.textContent = '▶️ 듣기';
+                keepAwakeAlert.style.display = 'none';
+            };
         }
 
         function setupMediaRecorder(songForRecording) {
@@ -872,7 +877,7 @@
             mediaRecorder.onstop = () => {
                 if (isStoppingManually) {
                     resetState();
-                    return; 
+                    return;
                 }
                 
                 const resultArea = document.getElementById('resultArea');
@@ -908,9 +913,6 @@
                     if (player.getPlayerState() === YT.PlayerState.PLAYING) {
                         player.pauseVideo();
                     }
-                };
-                audioPlayer.onended = () => {
-                    // 이 이벤트는 이제 onPlayerStateChange에서 처리하므로 비워두거나 보조용으로 사용
                 };
             };
         }
