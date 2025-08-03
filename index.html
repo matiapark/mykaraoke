@@ -555,6 +555,26 @@
             });
         }
         
+        // ★★★ 1. '듣기' 상태를 초기화하는 정리 함수 (신규 추가) ★★★
+        function resetSyncPlay() {
+            // isSyncPlaying 상태가 아니면 중복 실행 방지
+            if (!isSyncPlaying) return;
+
+            const audioPlayer = document.getElementById('recordedAudio');
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+            }
+            if (player) {
+                // 동영상을 0초로 이동시키고 일시정지합니다.
+                player.seekTo(0, true);
+                player.pauseVideo();
+            }
+            isSyncPlaying = false;
+            if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
+        }
+
+        // ★★★ 2. onPlayerStateChange 수정 ★★★
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
@@ -575,15 +595,9 @@
             }
         
             if (event.data === YT.PlayerState.ENDED) {
-                // '듣기' 모드 중 (isSyncPlaying) 비디오가 먼저 종료된 경우
-                const audioPlayer = document.getElementById('recordedAudio');
-                if (isSyncPlaying && audioPlayer) {
-                    audioPlayer.pause();
-                    audioPlayer.currentTime = 0;
-                    isSyncPlaying = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    // 플레이어는 이미 ENDED 상태이지만, 확실하게 0초로 이동
-                    player.seekTo(0, true);
+                // '듣기' 중 영상이 먼저 끝나면 정리 함수 호출
+                if (isSyncPlaying) {
+                    resetSyncPlay();
                     return; 
                 }
                 
@@ -870,6 +884,7 @@
             }
         }
 
+        // ★★★ 3. setupMediaRecorder 수정 ★★★
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -901,7 +916,6 @@
                 };
                 recordedChunks = [];
                 
-                isSyncPlaying = false;
                 playSyncBtn.textContent = '▶️ 듣기';
 
                 audioPlayer.onplay = () => {
@@ -910,20 +924,19 @@
                 };
                 
                 audioPlayer.onpause = () => {
-                    isSyncPlaying = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        player.pauseVideo();
+                    // 수동으로 일시정지하면 isSyncPlaying이 true일 수 있음
+                    if(isSyncPlaying){
+                        isSyncPlaying = false;
+                        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                            player.pauseVideo();
+                        }
                     }
+                    playSyncBtn.textContent = '▶️ 듣기';
                 };
                 
-                // ★★★ 핵심 수정: '듣기' 오디오가 모두 재생 완료되었을 때의 동작
+                // '듣기' 오디오가 모두 재생 완료되면 정리 함수 호출
                 audioPlayer.onended = () => {
-                    isSyncPlaying = false;
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    // 동영상을 0초로 이동시키고, 만약을 위해 일시정지 상태로 만듭니다.
-                    player.seekTo(0, true);
-                    player.pauseVideo();
+                    resetSyncPlay();
                 };
             };
         }
@@ -946,9 +959,12 @@
             recordedChunks = [];
             isSyncPlaying = false;
             const resultArea = document.getElementById('resultArea');
-            resultArea.style.display = 'none';
-            resultArea.querySelector('h4').textContent = '';
-            document.getElementById('custom-audio-controls').style.display = 'none';
+            if(resultArea) {
+                resultArea.style.display = 'none';
+                resultArea.querySelector('h4').textContent = '';
+            }
+            const controls = document.getElementById('custom-audio-controls');
+            if(controls) controls.style.display = 'none';
             const recordedAudio = document.getElementById('recordedAudio');
             if (recordedAudio) {
                 recordedAudio.src = "";
