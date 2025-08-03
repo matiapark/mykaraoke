@@ -427,7 +427,12 @@
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
         let isSyncPlaying = false, shouldStartRecordingOnPlay = false, shouldPlayAudioOnPlay = false;
-        let keepAwakeInterval; // 슬립모드 알림 체크를 위한 인터벌 변수 추가
+        
+        // ★★★ 1. '둘 다 종료' 상태를 추적할 변수 추가 ★★★
+        let isVideoFinished = false;
+        let isAudioFinished = false;
+
+        let keepAwakeInterval; 
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -555,9 +560,7 @@
             });
         }
         
-        // ★★★ 1. '듣기' 상태를 초기화하는 정리 함수 (신규 추가) ★★★
         function resetSyncPlay() {
-            // isSyncPlaying 상태가 아니면 중복 실행 방지
             if (!isSyncPlaying) return;
 
             const audioPlayer = document.getElementById('recordedAudio');
@@ -566,7 +569,6 @@
                 audioPlayer.currentTime = 0;
             }
             if (player) {
-                // 동영상을 0초로 이동시키고 일시정지합니다.
                 player.seekTo(0, true);
                 player.pauseVideo();
             }
@@ -574,7 +576,6 @@
             if (playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
         }
 
-        // ★★★ 2. onPlayerStateChange 수정 ★★★
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
@@ -595,18 +596,19 @@
             }
         
             if (event.data === YT.PlayerState.ENDED) {
-                // '듣기' 중 영상이 먼저 끝나면 정리 함수 호출
+                // ★★★ '듣기' 중 영상이 끝나면 깃발 올리고 확인 ★★★
                 if (isSyncPlaying) {
-                    resetSyncPlay();
+                    isVideoFinished = true;
+                    if (isVideoFinished && isAudioFinished) {
+                        resetSyncPlay();
+                    }
                     return; 
                 }
                 
-                // '시작' 모드로 노래가 종료된 경우
                 if (isSinging) {
                     stopSinging(false); 
                 }
                 
-                // 플레이리스트 다음 곡 재생
                 if (isPlaylistMode) {
                     currentPlaylistIndex++;
                     if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -868,23 +870,25 @@
             }, delay);
         }
         
+        // ★★★ '듣기' 시작 시 깃발 리셋 ★★★
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
             if (!audioPlayer || !player || !audioPlayer.src) return;
 
-            // 오디오가 멈춰있는 상태에서 버튼을 누르면 재생 (또는 이어하기)
             if (audioPlayer.paused) {
+                // '듣기' 시작 시, 두 깃발을 리셋합니다.
+                isVideoFinished = false;
+                isAudioFinished = false;
+                
                 player.seekTo(audioPlayer.currentTime, true);
                 player.setVolume(40);
                 shouldPlayAudioOnPlay = true;
                 player.playVideo();
             } else {
-            // 오디오가 재생 중인 상태에서 버튼을 누르면 일시정지
                 audioPlayer.pause();
             }
         }
 
-        // ★★★ 3. setupMediaRecorder 수정 ★★★
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -924,7 +928,6 @@
                 };
                 
                 audioPlayer.onpause = () => {
-                    // 수동으로 일시정지하면 isSyncPlaying이 true일 수 있음
                     if(isSyncPlaying){
                         isSyncPlaying = false;
                         if (player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -934,9 +937,12 @@
                     playSyncBtn.textContent = '▶️ 듣기';
                 };
                 
-                // '듣기' 오디오가 모두 재생 완료되면 정리 함수 호출
+                // ★★★ '듣기' 오디오가 끝나면 깃발 올리고 확인 ★★★
                 audioPlayer.onended = () => {
-                    resetSyncPlay();
+                    isAudioFinished = true;
+                    if (isVideoFinished && isAudioFinished) {
+                        resetSyncPlay();
+                    }
                 };
             };
         }
