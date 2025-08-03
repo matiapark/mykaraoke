@@ -581,7 +581,7 @@
                     audioPlayer.currentTime = 0;
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
-                    player.seekTo(0, true); // 추가: 동영상 0초로 이동
+                    player.seekTo(0, true); // 0초로 이동만 하고 재생하지 않음
                     return; 
                 }
                 
@@ -641,7 +641,7 @@
         async function startSinging() {
             if (isPreparing || isSinging || !player) return;
             if (document.hidden) {
-                alert('앱이 백그라운드에 있습니다. 화면을 켜고 다시 시도해주세요.');
+                alert('앱이 백그라라운드에 있습니다. 화면을 켜고 다시 시도해주세요.');
                 return;
             }
 
@@ -917,12 +917,12 @@
                     }
                 };
                 
-                // 수정된 부분: 재생 완료 시 동영상 0초로 이동하고 일시정지
+                // 수정: 재생 완료 시 동영상 0초로 이동만 하고 재생하지 않음
                 audioPlayer.onended = () => {
                     isSyncPlaying = false;
                     playSyncBtn.textContent = '▶️ 듣기';
                     player.seekTo(0, true);
-                    player.pauseVideo();
+                    player.pauseVideo(); // 재생하지 않도록 수정
                 };
             };
         }
