@@ -515,15 +515,14 @@
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
 
-            // 20초마다 5초간 슬립모드 경고 메시지 표시
             setInterval(() => {
                 if (isSinging || isSyncPlaying) {
                     keepAwakeAlert.style.display = 'block';
                     setTimeout(() => {
                         keepAwakeAlert.style.display = 'none';
-                    }, 5000); // 5초 후 메시지 숨김
+                    }, 5000);
                 }
-            }, 20000); // 20초 간격으로 실행
+            }, 20000);
         };
 
         function handleVisibilityChange() {
@@ -635,8 +634,29 @@
             }
             
             if (player) {
-                player.cueVideoById(songData.videoId);
                 player.setVolume(100);
+
+                const loadVideoWithRetry = (videoId, retriesLeft = 5) => {
+                    if (retriesLeft <= 0) {
+                        console.error("비디오 로드에 최종 실패했습니다.");
+                        alert("동영상 로드에 실패했습니다. 이전 화면으로 돌아가 다시 시도해 주세요.");
+                        returnToSearchView();
+                        return;
+                    }
+
+                    player.cueVideoById(videoId);
+
+                    setTimeout(() => {
+                        if (player.getVideoData && player.getVideoData().video_id !== videoId) {
+                            console.log(`비디오 로드 재시도... (${retriesLeft - 1}회 남음)`);
+                            loadVideoWithRetry(videoId, retriesLeft - 1);
+                        } else {
+                            console.log("✅ 비디오 로드 성공!");
+                        }
+                    }, 500);
+                };
+
+                loadVideoWithRetry(songData.videoId);
             }
 
             startBtn.disabled = false;
@@ -920,10 +940,7 @@
                     playSyncBtn.textContent = '▶️ 듣기';
                 };
                 
-                audioPlayer.onended = () => {
-                    // isSyncPlaying 상태를 여기서 바꾸지 않음.
-                    // 모든 종료 처리는 onPlayerStateChange가 담당.
-                };
+                audioPlayer.onended = () => {};
             };
         }
 
