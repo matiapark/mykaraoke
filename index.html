@@ -487,8 +487,33 @@
 
             backBtn.onclick = returnToSearchView;
             
-            // ★★★ '중단' 버튼을 '선곡'과 동일하게 전체 초기화 기능으로 변경 ★★★
-            stopBtn.onclick = returnToSearchView;
+            // ★★★ '중단' 버튼 로직 수정 ★★★
+            stopBtn.onclick = () => {
+                // 노래 부르기(녹음) 중일 때
+                if (isSinging) {
+                    stopSinging(true);
+                    return;
+                }
+                
+                // '듣기' 또는 '결과 확인' 상태일 때의 로직
+                const audioPlayer = document.getElementById('recordedAudio');
+                if (audioPlayer) {
+                    audioPlayer.pause();
+                    audioPlayer.src = "";
+                }
+                if (player) {
+                    player.stopVideo();
+                }
+                isSyncPlaying = false;
+                disableNoSleep();
+                noSleep.disable();
+
+                document.getElementById('resultArea').style.display = 'none';
+
+                // '노래 준비 완료' 상태로 되돌리기
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            };
             
             startBtn.onclick = startSinging;
 
@@ -583,7 +608,6 @@
                 if (isPlaylistMode && startBtn.textContent.includes('다음')) {
                     startBtn.disabled = false;
                 }
-
             }, 50); 
         }
 
@@ -928,6 +952,7 @@
             }
         }
 
+        // ★★★ 녹음 완료 후 버튼 상태 관리를 위해 수정 ★★★
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -950,6 +975,12 @@
                 audioPlayer.src = url;
 
                 customAudioControls.style.display = 'flex';
+                
+                // 플레이리스트 모드가 아닐 때만 버튼 상태 변경
+                if (!isPlaylistMode) {
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                }
                 
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
