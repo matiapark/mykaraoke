@@ -554,6 +554,9 @@
             isSyncPlaying = false; 
 
             setTimeout(() => {
+                disableNoSleep();
+                noSleep.disable();
+
                 const audioPlayer = document.getElementById('recordedAudio');
                 if (audioPlayer) {
                     audioPlayer.pause();
@@ -679,6 +682,7 @@
                 } else {
                     noSleep.enable();
                 }
+                enableNoSleep();
 
                 const constraints = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } };
                 audioStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -716,7 +720,6 @@
 
                 shouldStartRecordingOnPlay = true;
                 player.playVideo();
-                enableNoSleep();
 
             } catch (err) {
                 console.error("오디오 시작 실패:", err);
@@ -846,6 +849,9 @@
             if (agcAnimationId) cancelAnimationFrame(agcAnimationId);
             animationFrameId = null;
             agcAnimationId = null;
+
+            // ★★★ 비주얼라이저 숨김 로직 추가 ★★★
+            clearVisualizer();
             
             if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
             
@@ -881,6 +887,9 @@
             if (!audioPlayer || !player || !audioPlayer.src) return;
 
             if (audioPlayer.paused) {
+                enableNoSleep();
+                noSleep.enable();
+
                 isSyncPlaying = true;
                 shouldPlayAudioOnPlay = true;
                 player.setVolume(40);
