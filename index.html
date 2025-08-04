@@ -280,15 +280,15 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: white;
-            color: black;
-            padding: 8px 18px;
-            border-radius: 50em;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: goldenrod;
+            padding: 10px 20px;
+            border-radius: 12px;
             z-index: 1000;
             display: none;
             text-align: center;
             white-space: normal;
-            line-height: 1.4;
+            line-height: 1.5;
             max-width: 90%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
@@ -305,31 +305,25 @@
             #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
-            #keep-awake-alert {
-                width: 90%;
-                font-size: 14px;
-                padding: 6px 16px;
-            }
         }
 
-        /* ★★★ 데스크톱 화면(769px 이상)을 위한 스타일 ★★★ */
-        @media (min-width: 769px) {
-            /* 1. 안내 문구들 숨기기 */
+        /* 데스크톱 화면(1801px 이상)을 위한 스타일 */
+        @media (min-width: 1801px) {
+            /* ★★★ 레이아웃 유지를 위해 visibility: hidden 사용 ★★★ */
             #lyrics-zoom-guide,
-            #power-guide,
+            #sub-controls-container {
+                visibility: hidden;
+            }
             #keep-awake-alert {
                 display: none !important;
             }
-
-            /* 2. 모바일용 에코 버튼 숨기기 */
             .echo-btn-mobile {
                 display: none;
             }
         }
 
-        /* ★★★ 스마트폰/태블릿 화면(768px 이하)을 위한 스타일 ★★★ */
-        @media (max-width: 768px) {
-            /* 1. 데스크톱용 에코 버튼 숨기기 */
+        /* 스마트폰/태블릿 화면(1800px 이하)을 위한 스타일 */
+        @media (max-width: 1800px) {
             .echo-btn-desktop {
                 display: none;
             }
@@ -514,10 +508,31 @@
             });
 
             backBtn.onclick = returnToSearchView;
-            stopBtn.onclick = () => stopSinging(true);
+
+            // ★★★ '중단' 버튼 로직 수정 ★★★
+            stopBtn.onclick = () => {
+                if (isSinging) {
+                    stopSinging(true);
+                } else {
+                    const audioPlayer = document.getElementById('recordedAudio');
+                    if (audioPlayer) {
+                        audioPlayer.pause();
+                        audioPlayer.src = "";
+                    }
+                    if (player) {
+                        player.stopVideo();
+                    }
+                    isSyncPlaying = false;
+                    disableNoSleep();
+                    noSleep.disable();
+                    document.getElementById('resultArea').style.display = 'none';
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                }
+            };
+
             startBtn.onclick = startSinging;
 
-            // ★★★ 두 개의 에코 버튼에 모두 이벤트 리스너 추가 ★★★
             const echoButtons = document.querySelectorAll('.echo-btn-mobile, .echo-btn-desktop');
             echoButtons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -576,6 +591,16 @@
             });
         }
         
+        function playNextInPlaylist() {
+            currentPlaylistIndex++;
+            if (currentPlaylistIndex >= currentPlaylist.length) {
+                alert("플레이리스트의 마지막 곡입니다. 처음부터 다시 시작합니다.");
+                currentPlaylistIndex = 0;
+            }
+            isFirstSongInPlaylist = false; 
+            prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
+        }
+
         function resetSyncPlay() {
             const wasPlaying = isSyncPlaying;
             if (!wasPlaying) return;
@@ -597,7 +622,9 @@
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
-                if(stopBtn) stopBtn.disabled = true;
+                if (isPlaylistMode && startBtn.textContent.includes('다음')) {
+                    startBtn.disabled = false;
+                }
 
             }, 50); 
         }
@@ -629,12 +656,10 @@
                 }
                 
                 if (isPlaylistMode) {
-                    currentPlaylistIndex++;
-                    if (currentPlaylistIndex >= currentPlaylist.length) {
-                        currentPlaylistIndex = 0;
-                    }
-                    isFirstSongInPlaylist = false; 
-                    prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
+                    startBtn.textContent = '▶ 다음';
+                    startBtn.onclick = playNextInPlaylist;
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
                 }
             }
         }
@@ -677,9 +702,7 @@
                         returnToSearchView();
                         return;
                     }
-
                     player.cueVideoById(videoId);
-
                     setTimeout(() => {
                         if (player.getVideoData && player.getVideoData().video_id !== videoId) {
                             console.log(`비디오 로드 재시도... (${retriesLeft - 1}회 남음)`);
@@ -689,12 +712,18 @@
                         }
                     }, 500);
                 };
-
                 loadVideoWithRetry(songData.videoId);
             }
 
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
+            if(startBtn) {
+                startBtn.textContent = '▶ 시작';
+                startBtn.onclick = startSinging;
+                startBtn.disabled = false;
+            }
+            if(stopBtn) {
+                stopBtn.disabled = true;
+            }
+
             isPreparing = false;
         }
 
@@ -961,6 +990,11 @@
                 audioPlayer.src = url;
 
                 customAudioControls.style.display = 'flex';
+                
+                if (!isPlaylistMode) {
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                }
                 
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
