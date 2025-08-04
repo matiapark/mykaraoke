@@ -487,13 +487,8 @@
 
             backBtn.onclick = returnToSearchView;
             
-            stopBtn.onclick = () => {
-                if (isSinging) {
-                    stopSinging(true);
-                } else {
-                    resetSyncPlay();
-                }
-            };
+            // ★★★ '중단' 버튼을 '선곡'과 동일하게 전체 초기화 기능으로 변경 ★★★
+            stopBtn.onclick = returnToSearchView;
             
             startBtn.onclick = startSinging;
 
@@ -552,7 +547,6 @@
             });
         }
         
-        // ★★★ 플레이리스트 '다음' 버튼 기능 (신규 추가) ★★★
         function playNextInPlaylist() {
             currentPlaylistIndex++;
             if (currentPlaylistIndex >= currentPlaylist.length) {
@@ -563,6 +557,7 @@
             prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
         }
 
+        // ★★★ '다음' 버튼 상태 관리를 위해 수정 ★★★
         function resetSyncPlay() {
             const wasPlaying = isSyncPlaying;
             if (!wasPlaying) return;
@@ -584,10 +579,14 @@
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
+                // 플레이리스트 모드에서 '듣기'가 끝나면 '다음' 버튼 다시 활성화
+                if (isPlaylistMode && startBtn.textContent.includes('다음')) {
+                    startBtn.disabled = false;
+                }
+
             }, 50); 
         }
 
-        // ★★★ 플레이리스트 로직 수정 ★★★
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
@@ -615,16 +614,14 @@
                 }
                 
                 if (isPlaylistMode) {
-                    // 자동 다음 곡 재생 대신, '다음' 버튼으로 전환
                     startBtn.textContent = '▶ 다음';
-                    startBtn.onclick = playNextInPlaylist; // 버튼 기능을 '다음 곡 재생'으로 변경
-                    startBtn.disabled = false; // '다음' 버튼 활성화
+                    startBtn.onclick = playNextInPlaylist;
+                    startBtn.disabled = false;
                     stopBtn.disabled = true;
                 }
             }
         }
 
-        // ★★★ 버튼 초기화 로직 보강 ★★★
         async function prepareKaraoke(songData, isPlaylist = false) {
             if (isPreparing) return;
             isPreparing = true;
@@ -676,7 +673,6 @@
                 loadVideoWithRetry(songData.videoId);
             }
 
-            // 버튼 상태를 항상 완벽하게 초기화
             if(startBtn) {
                 startBtn.textContent = '▶ 시작';
                 startBtn.onclick = startSinging;
@@ -903,6 +899,7 @@
             }, delay);
         }
         
+        // ★★★ '다음' 버튼 상태 관리를 위해 수정 ★★★
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
             if (!audioPlayer || !player || !audioPlayer.src) return;
@@ -910,8 +907,12 @@
             if (audioPlayer.paused) {
                 enableNoSleep();
                 noSleep.enable();
-
                 stopBtn.disabled = false;
+
+                // 플레이리스트 모드에서 '다음' 버튼이 활성화 되어있다면 비활성화
+                if (isPlaylistMode && startBtn.textContent.includes('다음')) {
+                    startBtn.disabled = true;
+                }
 
                 isSyncPlaying = true;
                 shouldPlayAudioOnPlay = true;
