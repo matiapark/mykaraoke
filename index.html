@@ -280,10 +280,10 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: grey;
-            color: black;
-            padding: 8px 8px;
-            border-radius: 50em;
+            background-color: white;
+            color: goldenrod; /* 글자색 golden으로 수정 */
+            padding: 8px 15px; /* 상하 8px, 좌우 여백 조절 */
+            border-radius: 12px; /* 둥근 사각형 */
             z-index: 1000;
             display: none;
             text-align: center;
@@ -305,11 +305,7 @@
             #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
-            #keep-awake-alert {
-                width: 90%;
-                font-size: 14px;
-                padding: 6px 16px;
-            }
+            /* 스마트폰 너비 강제 조정 삭제 */
         }
     </style>
 </head>
