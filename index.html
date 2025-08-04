@@ -286,17 +286,10 @@
             border-radius: 20px;
             z-index: 1000;
             display: none;
-            animation: pulse 2s infinite;
             text-align: center;
             white-space: normal;
             line-height: 1.4;
             max-width: 90%;
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
         }
         
         @media (max-width: 600px) {
@@ -427,7 +420,6 @@
         let stopSilence = () => {};
         let isFirstSongInPlaylist = true;
         let isSyncPlaying = false, shouldStartRecordingOnPlay = false, shouldPlayAudioOnPlay = false;
-        let keepAwakeInterval; 
 
         // Web Audio API 관련 변수
         let gainNode, analyserNode, agcAnimationId;
@@ -523,13 +515,15 @@
             createDecorations('.left', 5, 3);
             createDecorations('.right', 5, 3);
 
-            keepAwakeInterval = setInterval(() => {
+            // 20초마다 5초간 슬립모드 경고 메시지 표시
+            setInterval(() => {
                 if (isSinging || isSyncPlaying) {
                     keepAwakeAlert.style.display = 'block';
-                } else {
-                    keepAwakeAlert.style.display = 'none';
+                    setTimeout(() => {
+                        keepAwakeAlert.style.display = 'none';
+                    }, 5000); // 5초 후 메시지 숨김
                 }
-            }, 1000);
+            }, 20000); // 20초 간격으로 실행
         };
 
         function handleVisibilityChange() {
@@ -554,7 +548,6 @@
             });
         }
         
-        // ★★★ 최종 수정 1: `setTimeout`으로 실행 시점을 강제 분리 ★★★
         function resetSyncPlay() {
             const wasPlaying = isSyncPlaying;
             if (!wasPlaying) return;
@@ -573,11 +566,9 @@
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
-            }, 50); // 50ms(0.05초)의 지연을 주어 브라우저가 다른 작업을 완료할 시간을 보장
+            }, 50); 
         }
 
-        // ★★★ 최종 수정 2: onPlayerStateChange 함수 (변경 없음, 확인용) ★★★
-        // 모든 종료 판단은 여기서만 담당
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
@@ -884,7 +875,6 @@
             }
         }
 
-        // ★★★ 최종 수정 3: setupMediaRecorder 함수 (오디오 이벤트 핸들러 단순화) ★★★
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -930,9 +920,10 @@
                     playSyncBtn.textContent = '▶️ 듣기';
                 };
                 
-                // 오디오가 끝나면 아무것도 하지 않음 (상태 변경 X).
-                // 모든 종료 처리는 onPlayerStateChange가 유일하게 담당.
-                audioPlayer.onended = () => {};
+                audioPlayer.onended = () => {
+                    // isSyncPlaying 상태를 여기서 바꾸지 않음.
+                    // 모든 종료 처리는 onPlayerStateChange가 담당.
+                };
             };
         }
 
