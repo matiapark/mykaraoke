@@ -280,15 +280,15 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: goldenrod;
-            padding: 10px 20px;
-            border-radius: 12px;
+            background-color: white;
+            color: black;
+            padding: 8px 18px;
+            border-radius: 50em;
             z-index: 1000;
             display: none;
             text-align: center;
             white-space: normal;
-            line-height: 1.5;
+            line-height: 1.4;
             max-width: 90%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
@@ -305,6 +305,34 @@
             #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
+            #keep-awake-alert {
+                width: 90%;
+                font-size: 14px;
+                padding: 6px 16px;
+            }
+        }
+
+        /* ★★★ 데스크톱 화면(769px 이상)을 위한 스타일 ★★★ */
+        @media (min-width: 769px) {
+            /* 1. 안내 문구들 숨기기 */
+            #lyrics-zoom-guide,
+            #power-guide,
+            #keep-awake-alert {
+                display: none !important;
+            }
+
+            /* 2. 모바일용 에코 버튼 숨기기 */
+            .echo-btn-mobile {
+                display: none;
+            }
+        }
+
+        /* ★★★ 스마트폰/태블릿 화면(768px 이하)을 위한 스타일 ★★★ */
+        @media (max-width: 768px) {
+            /* 1. 데스크톱용 에코 버튼 숨기기 */
+            .echo-btn-desktop {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -359,7 +387,7 @@
         </div>
         
         <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px; position: relative;">
-            <button id="echo-settings-btn" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; left: 20px;">🎛️ 에코</button>
+            <button id="echo-settings-btn" class="echo-btn-mobile" style="padding: 6px 12px; font-size: 14px; background-color: #6c757d; margin: 0; position: absolute; left: 20px;">🎛️ 에코</button>
             <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8; margin-left: auto;">
                 <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
@@ -368,6 +396,7 @@
         <footer>
           <div id="main-controls-container">
             <div>
+              <button id="echo-settings-btn-desktop" class="echo-btn-desktop" style="background-color: #6c757d;">🎛️ 에코</button>
               <button id="startBtn" disabled>▶ 시작</button>
               <button id="stopBtn" disabled>⏹ 중단</button>
               <button id="backBtn">🔍 선곡</button>
@@ -426,7 +455,7 @@
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
-        let echoSettingsBtn, audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls;
+        let audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls;
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -450,7 +479,6 @@
             micErrorMessage = document.getElementById('mic-error-message');
             headphoneGuide = document.getElementById('headphone-guide');
             keepAwakeAlert = document.getElementById('keep-awake-alert');
-            echoSettingsBtn = document.getElementById('echo-settings-btn');
             audioSettingsPanel = document.getElementById('audio-settings-panel');
             subControlsContainer = document.getElementById('sub-controls-container');
             playSyncBtn = document.getElementById('play-sync-btn');
@@ -486,40 +514,16 @@
             });
 
             backBtn.onclick = returnToSearchView;
-            
-            // ★★★ '중단' 버튼 로직 수정 ★★★
-            stopBtn.onclick = () => {
-                // 노래 부르기(녹음) 중일 때
-                if (isSinging) {
-                    stopSinging(true);
-                    return;
-                }
-                
-                // '듣기' 또는 '결과 확인' 상태일 때의 로직
-                const audioPlayer = document.getElementById('recordedAudio');
-                if (audioPlayer) {
-                    audioPlayer.pause();
-                    audioPlayer.src = "";
-                }
-                if (player) {
-                    player.stopVideo();
-                }
-                isSyncPlaying = false;
-                disableNoSleep();
-                noSleep.disable();
-
-                document.getElementById('resultArea').style.display = 'none';
-
-                // '노래 준비 완료' 상태로 되돌리기
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            };
-            
+            stopBtn.onclick = () => stopSinging(true);
             startBtn.onclick = startSinging;
 
-            echoSettingsBtn.addEventListener('click', () => {
-                const isVisible = audioSettingsPanel.style.display === 'block';
-                audioSettingsPanel.style.display = isVisible ? 'none' : 'block';
+            // ★★★ 두 개의 에코 버튼에 모두 이벤트 리스너 추가 ★★★
+            const echoButtons = document.querySelectorAll('.echo-btn-mobile, .echo-btn-desktop');
+            echoButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const isVisible = audioSettingsPanel.style.display === 'block';
+                    audioSettingsPanel.style.display = isVisible ? 'none' : 'block';
+                });
             });
             
             playSyncBtn.addEventListener('click', toggleSyncPlay);
@@ -572,17 +576,6 @@
             });
         }
         
-        function playNextInPlaylist() {
-            currentPlaylistIndex++;
-            if (currentPlaylistIndex >= currentPlaylist.length) {
-                alert("플레이리스트의 마지막 곡입니다. 처음부터 다시 시작합니다.");
-                currentPlaylistIndex = 0;
-            }
-            isFirstSongInPlaylist = false; 
-            prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
-        }
-
-        // ★★★ '다음' 버튼 상태 관리를 위해 수정 ★★★
         function resetSyncPlay() {
             const wasPlaying = isSyncPlaying;
             if (!wasPlaying) return;
@@ -604,10 +597,8 @@
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
-                // 플레이리스트 모드에서 '듣기'가 끝나면 '다음' 버튼 다시 활성화
-                if (isPlaylistMode && startBtn.textContent.includes('다음')) {
-                    startBtn.disabled = false;
-                }
+                if(stopBtn) stopBtn.disabled = true;
+
             }, 50); 
         }
 
@@ -638,10 +629,12 @@
                 }
                 
                 if (isPlaylistMode) {
-                    startBtn.textContent = '▶ 다음';
-                    startBtn.onclick = playNextInPlaylist;
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
+                    currentPlaylistIndex++;
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
+                    }
+                    isFirstSongInPlaylist = false; 
+                    prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
                 }
             }
         }
@@ -684,7 +677,9 @@
                         returnToSearchView();
                         return;
                     }
+
                     player.cueVideoById(videoId);
+
                     setTimeout(() => {
                         if (player.getVideoData && player.getVideoData().video_id !== videoId) {
                             console.log(`비디오 로드 재시도... (${retriesLeft - 1}회 남음)`);
@@ -694,18 +689,12 @@
                         }
                     }, 500);
                 };
+
                 loadVideoWithRetry(songData.videoId);
             }
 
-            if(startBtn) {
-                startBtn.textContent = '▶ 시작';
-                startBtn.onclick = startSinging;
-                startBtn.disabled = false;
-            }
-            if(stopBtn) {
-                stopBtn.disabled = true;
-            }
-
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
             isPreparing = false;
         }
 
@@ -923,7 +912,6 @@
             }, delay);
         }
         
-        // ★★★ '다음' 버튼 상태 관리를 위해 수정 ★★★
         function toggleSyncPlay() {
             const audioPlayer = document.getElementById('recordedAudio');
             if (!audioPlayer || !player || !audioPlayer.src) return;
@@ -933,7 +921,6 @@
                 noSleep.enable();
                 stopBtn.disabled = false;
 
-                // 플레이리스트 모드에서 '다음' 버튼이 활성화 되어있다면 비활성화
                 if (isPlaylistMode && startBtn.textContent.includes('다음')) {
                     startBtn.disabled = true;
                 }
@@ -952,7 +939,6 @@
             }
         }
 
-        // ★★★ 녹음 완료 후 버튼 상태 관리를 위해 수정 ★★★
         function setupMediaRecorder(songForRecording) {
             if (!mediaRecorder) return;
             mediaRecorder.ondataavailable = e => {
@@ -975,12 +961,6 @@
                 audioPlayer.src = url;
 
                 customAudioControls.style.display = 'flex';
-                
-                // 플레이리스트 모드가 아닐 때만 버튼 상태 변경
-                if (!isPlaylistMode) {
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                }
                 
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
