@@ -290,7 +290,6 @@
             text-align: center;
             white-space: normal;
             line-height: 1.6;
-            max-width: 90%;
             font-weight: bold;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
@@ -308,7 +307,6 @@
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
             #keep-awake-alert {
-                width: 90%;
                 font-size: 14px;
                 padding: 6px 16px;
             }
@@ -431,7 +429,6 @@
       </div>
     </div>
 
-    <!-- 수정된 슬립모드 안내문구 -->
     <div id="keep-awake-alert">
         화면이 어두워 지면<br>(슬립모드)<br>화면이 꺼지지 않도록<br>터치해주세요!
     </div>
@@ -519,7 +516,14 @@
             });
 
             backBtn.onclick = returnToSearchView;
-            stopBtn.onclick = () => stopSinging(true);
+            // ★★★ '중단' 버튼 클릭 시, '듣기' 재생 중이면 초기화하고 아니면 노래를 중단합니다. ★★★
+            stopBtn.onclick = () => {
+                if (isSyncPlaying) {
+                    resetSyncPlay();
+                } else {
+                    stopSinging(true);
+                }
+            };
             startBtn.onclick = startSinging;
 
             // ★★★ 두 개의 에코 버튼에 모두 이벤트 리스너 추가 ★★★
