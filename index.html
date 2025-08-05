@@ -274,6 +274,16 @@
         #headphone-guide p { margin: 0; font-size: 14px; line-height: 1.5; color: #f0f0f0; text-align: left; }
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
+
+        /* --- ★★★ 수정된 부분 시작 ★★★ --- */
+        .echo-btn-desktop:hover:not(:disabled), .echo-btn-mobile:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #828a91;
+        }
+        .echo-btn-desktop:disabled, .echo-btn-mobile:disabled {
+            cursor: not-allowed;
+        }
+        /* --- ★★★ 수정된 부분 끝 ★★★ --- */
         
         #keep-awake-alert {
             position: fixed;
@@ -509,24 +519,20 @@
 
             backBtn.onclick = returnToSearchView;
             
-            // --- ★★★ 수정된 부분 시작 ★★★ ---
             stopBtn.onclick = () => {
                 if (isSinging) {
                     stopSinging(true);
                 } 
                 else {
-                    // 녹음 결과 화면에서 중단 시 완벽한 초기화를 수행
-                    if (player) player.stopVideo(); // YouTube 플레이어 정지 및 시간 초기화
-                    resetState(); // 녹음 결과, UI 등 초기화
+                    if (player) player.stopVideo();
+                    resetState();
                     
-                    // 버튼 상태 초기화
                     if(startBtn) startBtn.disabled = false;
                     if(stopBtn) stopBtn.disabled = true;
                     if(subControlsContainer) subControlsContainer.style.display = 'flex';
                     document.getElementById('echo-settings-btn-desktop').disabled = false;
                 }
             };
-            // --- ★★★ 수정된 부분 끝 ★★★ ---
 
             startBtn.onclick = startSinging;
 
@@ -1026,7 +1032,6 @@
             });
         }
         
-        // --- ★★★ 수정된 부분 시작 ★★★ ---
         function resetState() {
             recordedChunks = [];
             isSyncPlaying = false;
@@ -1041,10 +1046,9 @@
             if (recordedAudio) {
                 recordedAudio.src = "";
             }
-            if(audioSettingsPanel) audioSettingsPanel.style.display = 'none'; // 에코 설정 패널 숨기기
+            if(audioSettingsPanel) audioSettingsPanel.style.display = 'none';
             clearVisualizer();
         }
-        // --- ★★★ 수정된 부분 끝 ★★★ ---
 
         function createDecorations(containerSelector, starCount, balloonCount) {
             const container = document.querySelector(containerSelector);
