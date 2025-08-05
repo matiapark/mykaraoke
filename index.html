@@ -275,6 +275,16 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
+        /* ★★★ '에코' 버튼 효과 추가 ★★★ */
+        #echo-settings-btn-desktop:hover:not(:disabled) {
+            background-color: #5a6268; /* 기존보다 약간 어두운 회색 */
+            transform: scale(1.05);
+        }
+        #echo-settings-btn-desktop:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+        
         #keep-awake-alert {
             position: fixed;
             bottom: 20px;
@@ -572,7 +582,7 @@
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
                 height: '360', width: '640',
-                playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3 },
+                playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3, rel: 0 },
                 events: { 
                     'onReady': () => console.log("✅ YouTube 준비됨"),
                     'onStateChange': onPlayerStateChange 
