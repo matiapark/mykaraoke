@@ -275,12 +275,10 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
-        /* --- ★★★ 수정된 부분 시작 ★★★ --- */
         .echo-btn-desktop:hover:not(:disabled), .echo-btn-mobile:hover:not(:disabled) {
             transform: scale(1.05);
             background-color: #828a91;
         }
-        /* --- ★★★ 수정된 부분 끝 ★★★ --- */
 
         #keep-awake-alert {
             position: fixed;
@@ -396,7 +394,7 @@
           <div id="main-controls-container">
             <div>
               <button id="echo-settings-btn-desktop" class="echo-btn-desktop" style="background-color: #6c757d;">🎛️ 에코</button>
-              <button id="startBtn" disabled>🚫 시작</button>
+              <button id="startBtn" disabled>▶ 시작</button>
               <button id="stopBtn" disabled>⏹ 중단</button>
               <button id="backBtn">🔍 선곡</button>
             </div>
@@ -520,13 +518,14 @@
                 } 
                 else {
                     resetState();
-                    if(startBtn) {
-                        startBtn.disabled = false;
-                        startBtn.innerHTML = '▶ 시작';
-                    }
+                    if(startBtn) startBtn.disabled = false;
                     if(stopBtn) stopBtn.disabled = true;
                     if(subControlsContainer) subControlsContainer.style.display = 'flex';
-                    document.getElementById('echo-settings-btn-desktop').disabled = false;
+                    
+                    // --- ★★★ 수정된 부분 ★★★ ---
+                    const desktopEchoBtn = document.getElementById('echo-settings-btn-desktop');
+                    desktopEchoBtn.disabled = false;
+                    desktopEchoBtn.innerHTML = '🎛️ 에코';
                 }
             };
 
@@ -624,8 +623,6 @@
                     getPitch();
                     runAutoGainControl();
                     startBtn.disabled = true;
-                    // --- ★★★ 수정된 부분 ★★★ ---
-                    startBtn.innerHTML = '🚫 시작';
                     stopBtn.disabled = false;
                 }
                 if (shouldPlayAudioOnPlay) {
@@ -710,8 +707,6 @@
             }
 
             startBtn.disabled = false;
-            // --- ★★★ 수정된 부분 ★★★ ---
-            startBtn.innerHTML = '▶ 시작';
             stopBtn.disabled = true;
             isPreparing = false;
         }
@@ -743,8 +738,12 @@
                 
                 headphoneGuide.style.display = 'none';
                 subControlsContainer.style.display = 'none';
+                
                 // --- ★★★ 수정된 부분 ★★★ ---
-                document.getElementById('echo-settings-btn-desktop').disabled = true;
+                const desktopEchoBtn = document.getElementById('echo-settings-btn-desktop');
+                desktopEchoBtn.disabled = true;
+                desktopEchoBtn.innerHTML = '🚫 에코';
+                
                 audioSettingsPanel.style.display = 'none';
                 
                 document.getElementById('resultArea').style.display = 'block';
@@ -929,19 +928,17 @@
                 if (isPreparingNewSong) return;
 
                 if (isStoppingManually) {
-                    if(startBtn) {
-                        startBtn.disabled = false;
-                        startBtn.innerHTML = '▶ 시작';
-                    }
+                    if(startBtn) startBtn.disabled = false;
                     if(stopBtn) stopBtn.disabled = true;
                     if(subControlsContainer) subControlsContainer.style.display = 'flex';
-                    document.getElementById('echo-settings-btn-desktop').disabled = false;
+                    
+                    // --- ★★★ 수정된 부분 ★★★ ---
+                    const desktopEchoBtn = document.getElementById('echo-settings-btn-desktop');
+                    desktopEchoBtn.disabled = false;
+                    desktopEchoBtn.innerHTML = '🎛️ 에코';
                 } 
                 else {
-                    if(startBtn) {
-                        startBtn.disabled = true;
-                        startBtn.innerHTML = '🚫 시작';
-                    }
+                    if(startBtn) startBtn.disabled = true;
                     if(stopBtn) stopBtn.disabled = false;
                     if(subControlsContainer) subControlsContainer.style.display = 'none';
                 }
