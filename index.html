@@ -639,7 +639,18 @@
                 }
                 
                 if (isSinging) {
-                    stopSinging(false); 
+                    // ★★★ 수정된 부분 ★★★
+                    // stopSinging() 대신 필요한 로직만 직접 실행하여 로직 충돌 방지
+                    isSinging = false; // 비주얼라이저 정지
+                    clearVisualizer(); // 비주얼라이저 화면 초기화
+                    if(player) {
+                        player.pauseVideo(); // 동영상을 멈추고
+                        player.seekTo(0, true); // 0초로 되돌림
+                    }
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        isStoppingManually = false; 
+                        mediaRecorder.stop(); // 녹음 중단 -> onstop 이벤트 발생
+                    }
                 }
                 
                 if (isPlaylistMode) {
@@ -982,6 +993,11 @@
 
                 customAudioControls.style.display = 'flex';
                 
+                // ★★★ 수정된 부분 ★★★
+                // '듣기' 모드일 때 '시작'과 '에코' 버튼 비활성화
+                startBtn.disabled = true;
+                document.getElementById('echo-settings-btn-desktop').disabled = true;
+                
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
                     a.style.display = 'none'; a.href = url;
@@ -1293,4 +1309,3 @@
     </script>
 </body>
 </html>
-}
