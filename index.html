@@ -258,19 +258,6 @@
         #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
         #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
         #ytplayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        
-        /* '동영상 더보기'를 가리기 위한 오버레이 스타일 */
-        #video-blocker {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            z-index: 10;
-            display: none;
-        }
-
         button { padding: 12px 25px; font-size: 18px; font-weight: bold; margin: 5px; cursor: pointer; border-radius: 25px; border: none; color: white; transition: all 0.2s ease-in-out; }
         #startBtn { background-color: #1DB954; }
         #startBtn:hover:not(:disabled) { background-color: #1ED760; transform: scale(1.05); }
@@ -288,8 +275,9 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
+        /* ★★★ '에코' 버튼 효과 추가 ★★★ */
         #echo-settings-btn-desktop:hover:not(:disabled) {
-            background-color: #5a6268;
+            background-color: #5a6268; /* 기존보다 약간 어두운 회색 */
             transform: scale(1.05);
         }
         #echo-settings-btn-desktop:disabled {
@@ -333,18 +321,24 @@
             }
         }
 
+        /* ★★★ 데스크톱 화면(769px 이상)을 위한 스타일 ★★★ */
         @media (min-width: 769px) {
+            /* 1. 안내 문구 및 일부 버튼 숨기기 */
             #lyrics-zoom-guide,
             #power-guide,
             #keep-awake-alert {
                 display: none !important;
             }
+
+            /* 2. 모바일용 에코 버튼 숨기기 */
             .echo-btn-mobile {
                 display: none;
             }
         }
 
+        /* ★★★ 스마트폰/태블릿 화면(768px 이하)을 위한 스타일 ★★★ */
         @media (max-width: 768px) {
+            /* 1. 데스크톱용 에코 버튼 숨기기 */
             .echo-btn-desktop {
                 display: none;
             }
@@ -391,7 +385,6 @@
             <h2 id="karaoke-title"></h2>
         </header>
         <div id="playerContainer">
-          <div id="video-blocker"></div>
           <div id="ytplayer"></div>
         </div>
         <div id="lyrics-zoom-guide">
@@ -470,7 +463,7 @@
         let delayNode, feedbackGain, wetGain, dryGain, wetBranchGain;
 
         // --- 전역 DOM 요소 변수 ---
-        let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls, videoBlocker;
+        let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
         let audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls;
@@ -501,7 +494,6 @@
             subControlsContainer = document.getElementById('sub-controls-container');
             playSyncBtn = document.getElementById('play-sync-btn');
             customAudioControls = document.getElementById('custom-audio-controls');
-            videoBlocker = document.getElementById('video-blocker');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -613,18 +605,13 @@
                     audioPlayer.pause();
                     audioPlayer.currentTime = 0;
                 }
-                
-                if (videoBlocker) videoBlocker.style.display = 'block';
-                if (player) player.pauseVideo();
-
+                if (player && typeof player.stopVideo === 'function') {
+                    player.stopVideo();
+                }
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
-                
                 if(stopBtn) stopBtn.disabled = true;
-                if(startBtn) startBtn.disabled = false;
-                const echoDesktopBtn = document.getElementById('echo-settings-btn-desktop');
-                if(echoDesktopBtn) echoDesktopBtn.disabled = false;
 
             }, 50); 
         }
@@ -652,16 +639,7 @@
                 }
                 
                 if (isSinging) {
-                    isSinging = false;
-                    clearVisualizer();
-                    if(player) {
-                        player.pauseVideo();
-                        player.seekTo(0, true);
-                    }
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        isStoppingManually = false; 
-                        mediaRecorder.stop();
-                    }
+                    stopSinging(false); 
                 }
                 
                 if (isPlaylistMode) {
@@ -679,8 +657,6 @@
             if (isPreparing) return;
             isPreparing = true;
             
-            if (videoBlocker) videoBlocker.style.display = 'none';
-
             currentSongData = songData;
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
@@ -887,17 +863,11 @@
             if (!isSinging) return;
             isStoppingManually = manual;
 
-            if (manual && player) {
-                player.stopVideo();
-            }
-
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
-
-            if (manual) {
-                await cleanupAudioResources();
-            }
+            if (player) player.stopVideo();
+            await cleanupAudioResources();
         }
 
         async function returnToSearchView() {
@@ -967,7 +937,6 @@
             if (!audioPlayer || !player || !audioPlayer.src) return;
 
             if (audioPlayer.paused) {
-                if (videoBlocker) videoBlocker.style.display = 'none';
                 enableNoSleep();
                 noSleep.enable();
                 stopBtn.disabled = false;
@@ -1012,9 +981,6 @@
                 audioPlayer.src = url;
 
                 customAudioControls.style.display = 'flex';
-                
-                startBtn.disabled = true;
-                document.getElementById('echo-settings-btn-desktop').disabled = true;
                 
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
@@ -1327,3 +1293,4 @@
     </script>
 </body>
 </html>
+}
