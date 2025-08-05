@@ -709,6 +709,8 @@
                 return;
             }
 
+            document.getElementById('echo-settings-btn-desktop').disabled = true;
+
             try {
                 if ('wakeLock' in navigator) {
                     try {
@@ -913,6 +915,10 @@
                 if(startBtn) startBtn.disabled = false;
                 if(stopBtn) stopBtn.disabled = true;
                 if(subControlsContainer) subControlsContainer.style.display = 'flex';
+                
+                const echoDesktopBtn = document.getElementById('echo-settings-btn-desktop');
+                if(echoDesktopBtn) echoDesktopBtn.disabled = false;
+                
             }, delay);
         }
         
