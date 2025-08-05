@@ -258,6 +258,18 @@
         #karaoke-container { max-width: 680px; margin: 0 auto; padding: 0; }
         #playerContainer { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; border-radius: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); margin-top: 15px; margin-bottom: 15px; }
         #ytplayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        #video-blocker {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 10;
+            display: none;
+        }
+
         button { padding: 12px 25px; font-size: 18px; font-weight: bold; margin: 5px; cursor: pointer; border-radius: 25px; border: none; color: white; transition: all 0.2s ease-in-out; }
         #startBtn { background-color: #1DB954; }
         #startBtn:hover:not(:disabled) { background-color: #1ED760; transform: scale(1.05); }
@@ -275,9 +287,8 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
-        /* ★★★ '에코' 버튼 효과 추가 ★★★ */
         #echo-settings-btn-desktop:hover:not(:disabled) {
-            background-color: #5a6268; /* 기존보다 약간 어두운 회색 */
+            background-color: #5a6268;
             transform: scale(1.05);
         }
         #echo-settings-btn-desktop:disabled {
@@ -321,24 +332,18 @@
             }
         }
 
-        /* ★★★ 데스크톱 화면(769px 이상)을 위한 스타일 ★★★ */
         @media (min-width: 769px) {
-            /* 1. 안내 문구 및 일부 버튼 숨기기 */
             #lyrics-zoom-guide,
             #power-guide,
             #keep-awake-alert {
                 display: none !important;
             }
-
-            /* 2. 모바일용 에코 버튼 숨기기 */
             .echo-btn-mobile {
                 display: none;
             }
         }
 
-        /* ★★★ 스마트폰/태블릿 화면(768px 이하)을 위한 스타일 ★★★ */
         @media (max-width: 768px) {
-            /* 1. 데스크톱용 에코 버튼 숨기기 */
             .echo-btn-desktop {
                 display: none;
             }
@@ -385,6 +390,7 @@
             <h2 id="karaoke-title"></h2>
         </header>
         <div id="playerContainer">
+          <div id="video-blocker"></div>
           <div id="ytplayer"></div>
         </div>
         <div id="lyrics-zoom-guide">
@@ -463,7 +469,7 @@
         let delayNode, feedbackGain, wetGain, dryGain, wetBranchGain;
 
         // --- 전역 DOM 요소 변수 ---
-        let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
+        let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls, videoBlocker;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
         let audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls;
@@ -494,6 +500,7 @@
             subControlsContainer = document.getElementById('sub-controls-container');
             playSyncBtn = document.getElementById('play-sync-btn');
             customAudioControls = document.getElementById('custom-audio-controls');
+            videoBlocker = document.getElementById('video-blocker');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -525,13 +532,7 @@
             });
 
             backBtn.onclick = returnToSearchView;
-            stopBtn.onclick = () => {
-                if (isSyncPlaying) {
-                    resetSyncPlay();
-                } else {
-                    stopSinging(true);
-                }
-            };
+            stopBtn.onclick = cleanupAudioResources; // '중단' 버튼은 항상 마스터 초기화 함수를 호출
             startBtn.onclick = startSinging;
 
             const echoButtons = document.querySelectorAll('.echo-btn-mobile, .echo-btn-desktop');
@@ -571,11 +572,6 @@
         function handleVisibilityChange() {
             if (document.hidden && player && isSinging) {
                 stopSinging(true);
-                if (Notification.permission === 'granted') {
-                    new Notification('나의 노래방 알림', {
-                        body: '화면이 꺼져 재생이 중지되었습니다. 다시 시작하려면 앱으로 돌아가세요.'
-                    });
-                }
             }
         }
 
@@ -590,32 +586,6 @@
             });
         }
         
-        function resetSyncPlay() {
-            const wasPlaying = isSyncPlaying;
-            if (!wasPlaying) return;
-
-            isSyncPlaying = false; 
-
-            setTimeout(() => {
-                disableNoSleep();
-                noSleep.disable();
-
-                const audioPlayer = document.getElementById('recordedAudio');
-                if (audioPlayer) {
-                    audioPlayer.pause();
-                    audioPlayer.currentTime = 0;
-                }
-                if (player && typeof player.stopVideo === 'function') {
-                    player.stopVideo();
-                }
-                if (playSyncBtn) {
-                    playSyncBtn.textContent = '▶️ 듣기';
-                }
-                if(stopBtn) stopBtn.disabled = true;
-
-            }, 50); 
-        }
-
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 if (shouldStartRecordingOnPlay) {
@@ -623,8 +593,6 @@
                     mediaRecorder.start();
                     getPitch();
                     runAutoGainControl();
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
                 }
                 if (shouldPlayAudioOnPlay) {
                     shouldPlayAudioOnPlay = false;
@@ -634,22 +602,20 @@
         
             if (event.data === YT.PlayerState.ENDED) {
                 if (isSyncPlaying) {
-                    resetSyncPlay();
+                    cleanupAudioResources();
                     return; 
                 }
                 
                 if (isSinging) {
-                    // ★★★ 수정된 부분 ★★★
-                    // stopSinging() 대신 필요한 로직만 직접 실행하여 로직 충돌 방지
-                    isSinging = false; // 비주얼라이저 정지
-                    clearVisualizer(); // 비주얼라이저 화면 초기화
+                    isSinging = false;
+                    clearVisualizer();
                     if(player) {
-                        player.pauseVideo(); // 동영상을 멈추고
-                        player.seekTo(0, true); // 0초로 되돌림
+                        player.pauseVideo();
+                        player.seekTo(0, true);
                     }
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         isStoppingManually = false; 
-                        mediaRecorder.stop(); // 녹음 중단 -> onstop 이벤트 발생
+                        mediaRecorder.stop();
                     }
                 }
                 
@@ -668,22 +634,15 @@
             if (isPreparing) return;
             isPreparing = true;
             
+            if (videoBlocker) videoBlocker.style.display = 'none';
+            
             currentSongData = songData;
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
             document.getElementById('karaoke-title').textContent = `${songData.title} - ${songData.artist}`;
             micErrorMessage.style.display = 'none';
             
-            subControlsContainer.style.display = 'flex';
-            audioSettingsPanel.style.display = 'none';
-
-            if (isFirstSongInPlaylist) {
-                headphoneGuide.style.display = 'flex';
-            } else {
-                headphoneGuide.style.display = 'none';
-            }
-            
-            await cleanupAudioResources();
+            await cleanupAudioResources(true); // 노래 준비 시에는 즉시 초기화
             resetState();
             
             isPlaylistMode = isPlaylist;
@@ -718,8 +677,6 @@
                 loadVideoWithRetry(songData.videoId);
             }
 
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
             isPreparing = false;
         }
 
@@ -729,8 +686,6 @@
                 alert('앱이 백그라운드에 있습니다. 화면을 켜고 다시 시도해주세요.');
                 return;
             }
-
-            document.getElementById('echo-settings-btn-desktop').disabled = true;
 
             try {
                 if ('wakeLock' in navigator) {
@@ -778,6 +733,10 @@
 
                 shouldStartRecordingOnPlay = true;
                 player.playVideo();
+                
+                stopBtn.disabled = false;
+                startBtn.disabled = true;
+                document.getElementById('echo-settings-btn-desktop').disabled = true;
 
             } catch (err) {
                 console.error("오디오 시작 실패:", err);
@@ -869,78 +828,75 @@
             }
             adjustGain();
         }
+        
+        // '중단' 버튼이 직접 호출하는 마스터 초기화 함수
+        async function cleanupAudioResources(immediate = false) {
+            isStoppingManually = true;
 
-        async function stopSinging(manual = false) {
-            if (!isSinging) return;
-            isStoppingManually = manual;
-
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-            if (player) player.stopVideo();
-            await cleanupAudioResources();
-        }
-
-        async function returnToSearchView() {
-            if (player) player.stopVideo();
-            
+            // 모든 재생/녹음 관련 정지
             const audioPlayer = document.getElementById('recordedAudio');
             if(audioPlayer) {
                 audioPlayer.pause();
                 audioPlayer.src = "";
             }
-
-            await cleanupAudioResources();
-            
-            isPlaylistMode = false;
-            currentSongData = null;
-            isFirstSongInPlaylist = true;
-            
-            karaokeView.style.display = 'none';
-            searchView.style.display = 'block';
-            searchInput.value = '';
-            switchView('search');
-        }
-
-        async function cleanupAudioResources() {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            if (agcAnimationId) cancelAnimationFrame(agcAnimationId);
-            animationFrameId = null;
-            agcAnimationId = null;
-
-            clearVisualizer();
-            
-            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-            
+            if (player) {
+                player.pauseVideo();
+                player.seekTo(0, true);
+            }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
             if (audioContext && audioContext.state !== 'closed') {
                 await audioContext.close();
             }
             if (audioStream) audioStream.getTracks().forEach(track => track.stop());
             
-            if (wakeLock) {
-                try { await wakeLock.release(); } catch(e) {}
-                wakeLock = null;
-            }
-            noSleep.disable();
-            disableNoSleep();
+            // 시각 효과 정지
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (agcAnimationId) cancelAnimationFrame(agcAnimationId);
+            animationFrameId = null;
+            agcAnimationId = null;
+            clearVisualizer();
 
+            // 상태 변수 초기화
             pitch = null;
             audioStream = null;
             mediaRecorder = null;
             audioContext = null;
             isSinging = false;
             isSyncPlaying = false;
+
+            // 화면 잠금 방지 해제
+            if (wakeLock) {
+                try { await wakeLock.release(); } catch(e) {}
+                wakeLock = null;
+            }
+            noSleep.disable();
+            disableNoSleep();
             
-            const delay = isStoppingManually ? 500 : 0;
+            // UI를 '준비' 상태로 되돌림
+            const delay = immediate ? 0 : 500;
             setTimeout(() => {
+                if (videoBlocker) videoBlocker.style.display = 'block';
                 if(startBtn) startBtn.disabled = false;
                 if(stopBtn) stopBtn.disabled = true;
-                if(subControlsContainer) subControlsContainer.style.display = 'flex';
-                
                 const echoDesktopBtn = document.getElementById('echo-settings-btn-desktop');
                 if(echoDesktopBtn) echoDesktopBtn.disabled = false;
-                
+                if(subControlsContainer) subControlsContainer.style.display = 'flex';
+                if(playSyncBtn) playSyncBtn.textContent = '▶️ 듣기';
+                resetState();
             }, delay);
+        }
+
+        async function returnToSearchView() {
+            await cleanupAudioResources(true);
+            isPlaylistMode = false;
+            currentSongData = null;
+            isFirstSongInPlaylist = true;
+            karaokeView.style.display = 'none';
+            searchView.style.display = 'block';
+            searchInput.value = '';
+            switchView('search');
         }
         
         function toggleSyncPlay() {
@@ -948,13 +904,10 @@
             if (!audioPlayer || !player || !audioPlayer.src) return;
 
             if (audioPlayer.paused) {
+                if (videoBlocker) videoBlocker.style.display = 'none';
                 enableNoSleep();
                 noSleep.enable();
                 stopBtn.disabled = false;
-
-                if (isPlaylistMode && startBtn.textContent.includes('다음')) {
-                    startBtn.disabled = true;
-                }
 
                 isSyncPlaying = true;
                 shouldPlayAudioOnPlay = true;
@@ -993,8 +946,7 @@
 
                 customAudioControls.style.display = 'flex';
                 
-                // ★★★ 수정된 부분 ★★★
-                // '듣기' 모드일 때 '시작'과 '에코' 버튼 비활성화
+                stopBtn.disabled = false;
                 startBtn.disabled = true;
                 document.getElementById('echo-settings-btn-desktop').disabled = true;
                 
@@ -1040,7 +992,6 @@
         
         function resetState() {
             recordedChunks = [];
-            isSyncPlaying = false;
             const resultArea = document.getElementById('resultArea');
             if(resultArea) {
                 resultArea.style.display = 'none';
