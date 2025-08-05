@@ -275,15 +275,16 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
+        /* --- 수정된 슬립모드 메시지 스타일 --- */
         #keep-awake-alert {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: goldenrod;
-            padding: 10px 20px;
-            border-radius: 12px;
+            background-color: rgba(0, 0, 0, 0.7); /* 반투명 검정색 배경 */
+            color: white; /* 흰색 글자 */
+            padding: 15px; /* 패딩 조정 */
+            border-radius: 10px; /* 사각박스 모서리 둥글게 */
             z-index: 1000;
             display: none;
             text-align: center;
@@ -305,24 +306,31 @@
             #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
+            #keep-awake-alert {
+                width: 90%;
+                font-size: 14px;
+                padding: 10px 16px;
+            }
         }
 
-        /* 데스크톱 화면(1801px 이상)을 위한 스타일 */
+        /* ★★★ 데스크톱 화면(1801px 이상)을 위한 스타일 (수정됨) ★★★ */
         @media (min-width: 1801px) {
+            /* 1. 안내 문구들 숨기기 */
             #lyrics-zoom-guide,
-            #sub-controls-container {
-                visibility: hidden;
-            }
+            #power-guide,
             #keep-awake-alert {
                 display: none !important;
             }
+
+            /* 2. 모바일용 에코 버튼 숨기기 */
             .echo-btn-mobile {
                 display: none;
             }
         }
 
-        /* 스마트폰/태블릿 화면(1800px 이하)을 위한 스타일 */
+        /* ★★★ 스마트폰/태블릿 화면(1800px 이하)을 위한 스타일 (수정됨) ★★★ */
         @media (max-width: 1800px) {
+            /* 1. 데스크톱용 에코 버튼 숨기기 */
             .echo-btn-desktop {
                 display: none;
             }
@@ -507,30 +515,10 @@
             });
 
             backBtn.onclick = returnToSearchView;
-            
-            stopBtn.onclick = () => {
-                if (isSinging) {
-                    stopSinging(true);
-                } else {
-                    const audioPlayer = document.getElementById('recordedAudio');
-                    if (audioPlayer) {
-                        audioPlayer.pause();
-                        audioPlayer.src = "";
-                    }
-                    if (player) {
-                        player.stopVideo();
-                    }
-                    isSyncPlaying = false;
-                    disableNoSleep();
-                    noSleep.disable();
-                    document.getElementById('resultArea').style.display = 'none';
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
-                }
-            };
-            
+            stopBtn.onclick = () => stopSinging(true);
             startBtn.onclick = startSinging;
 
+            // ★★★ 두 개의 에코 버튼에 모두 이벤트 리스너 추가 ★★★
             const echoButtons = document.querySelectorAll('.echo-btn-mobile, .echo-btn-desktop');
             echoButtons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -589,16 +577,6 @@
             });
         }
         
-        function playNextInPlaylist() {
-            currentPlaylistIndex++;
-            if (currentPlaylistIndex >= currentPlaylist.length) {
-                alert("플레이리스트의 마지막 곡입니다. 처음부터 다시 시작합니다.");
-                currentPlaylistIndex = 0;
-            }
-            isFirstSongInPlaylist = false; 
-            prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
-        }
-
         function resetSyncPlay() {
             const wasPlaying = isSyncPlaying;
             if (!wasPlaying) return;
@@ -620,9 +598,7 @@
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
-                if (isPlaylistMode && startBtn.textContent.includes('다음')) {
-                    startBtn.disabled = false;
-                }
+                if(stopBtn) stopBtn.disabled = true;
 
             }, 50); 
         }
@@ -654,10 +630,12 @@
                 }
                 
                 if (isPlaylistMode) {
-                    startBtn.textContent = '▶ 다음';
-                    startBtn.onclick = playNextInPlaylist;
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
+                    currentPlaylistIndex++;
+                    if (currentPlaylistIndex >= currentPlaylist.length) {
+                        currentPlaylistIndex = 0;
+                    }
+                    isFirstSongInPlaylist = false; 
+                    prepareKaraoke(currentPlaylist[currentPlaylistIndex], true);
                 }
             }
         }
@@ -700,7 +678,9 @@
                         returnToSearchView();
                         return;
                     }
+
                     player.cueVideoById(videoId);
+
                     setTimeout(() => {
                         if (player.getVideoData && player.getVideoData().video_id !== videoId) {
                             console.log(`비디오 로드 재시도... (${retriesLeft - 1}회 남음)`);
@@ -710,18 +690,12 @@
                         }
                     }, 500);
                 };
+
                 loadVideoWithRetry(songData.videoId);
             }
 
-            if(startBtn) {
-                startBtn.textContent = '▶ 시작';
-                startBtn.onclick = startSinging;
-                startBtn.disabled = false;
-            }
-            if(stopBtn) {
-                stopBtn.disabled = true;
-            }
-
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
             isPreparing = false;
         }
 
@@ -988,11 +962,6 @@
                 audioPlayer.src = url;
 
                 customAudioControls.style.display = 'flex';
-                
-                if (!isPlaylistMode) {
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                }
                 
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
