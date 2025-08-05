@@ -275,9 +275,8 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
-        /* ★★★ '에코' 버튼 효과 추가 ★★★ */
         #echo-settings-btn-desktop:hover:not(:disabled) {
-            background-color: #5a6268; /* 기존보다 약간 어두운 회색 */
+            background-color: #5a6268;
             transform: scale(1.05);
         }
         #echo-settings-btn-desktop:disabled {
@@ -321,24 +320,18 @@
             }
         }
 
-        /* ★★★ 데스크톱 화면(769px 이상)을 위한 스타일 ★★★ */
         @media (min-width: 769px) {
-            /* 1. 안내 문구 및 일부 버튼 숨기기 */
             #lyrics-zoom-guide,
             #power-guide,
             #keep-awake-alert {
                 display: none !important;
             }
-
-            /* 2. 모바일용 에코 버튼 숨기기 */
             .echo-btn-mobile {
                 display: none;
             }
         }
 
-        /* ★★★ 스마트폰/태블릿 화면(768px 이하)을 위한 스타일 ★★★ */
         @media (max-width: 768px) {
-            /* 1. 데스크톱용 에코 버튼 숨기기 */
             .echo-btn-desktop {
                 display: none;
             }
@@ -605,13 +598,19 @@
                     audioPlayer.pause();
                     audioPlayer.currentTime = 0;
                 }
-                if (player && typeof player.stopVideo === 'function') {
-                    player.stopVideo();
+                
+                if (player && typeof player.pauseVideo === 'function') {
+                    player.pauseVideo();
+                    player.seekTo(0, true);
                 }
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
+                
                 if(stopBtn) stopBtn.disabled = true;
+                if(startBtn) startBtn.disabled = false;
+                const echoDesktopBtn = document.getElementById('echo-settings-btn-desktop');
+                if(echoDesktopBtn) echoDesktopBtn.disabled = false;
 
             }, 50); 
         }
@@ -981,6 +980,9 @@
                 audioPlayer.src = url;
 
                 customAudioControls.style.display = 'flex';
+                
+                startBtn.disabled = true;
+                document.getElementById('echo-settings-btn-desktop').disabled = true;
                 
                 document.getElementById('downloadBtn').onclick = () => {
                     const a = document.createElement('a');
