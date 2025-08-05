@@ -282,10 +282,7 @@
             transform: translateX(-50%);
             background-color: rgba(0, 0, 0, 0.7);
             color: goldenrod;
-            /* --- ★★★ 수정된 부분 시작 ★★★ --- */
-            /* width와 height를 제거하여 내용물에 맞게 크기 자동 조절 */
-            padding: 15px 25px; /* 내부 여백 조정으로 비율 맞춤 */
-            /* --- ★★★ 수정된 부분 끝 ★★★ --- */
+            padding: 15px 25px; 
             box-sizing: border-box;
             border-radius: 15px;
             z-index: 1000;
@@ -296,6 +293,18 @@
             line-height: 1.4;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
+
+        /* --- ★★★ 수정된 부분 시작 ★★★ --- */
+        /* 활성화된 '에코' 버튼에 마우스를 올렸을 때의 효과 */
+        .echo-btn-desktop:hover:not(:disabled), .echo-btn-mobile:hover:not(:disabled) {
+            transform: scale(1.05); /* 약간 커지는 효과 */
+            background-color: #828a91; /* 약간 밝아지는 효과 */
+        }
+        /* 비활성화된 '에코' 버튼에 마우스를 올렸을 때의 커서 모양 */
+        .echo-btn-desktop:disabled, .echo-btn-mobile:disabled {
+            cursor: not-allowed; /* 금지 심볼 커서 */
+        }
+        /* --- ★★★ 수정된 부분 끝 ★★★ --- */
         
         @media (max-width: 600px) {
             #search-view { margin-top: 20px; padding: 20px; }
@@ -1002,7 +1011,6 @@
                     playSyncBtn.textContent = '▶️ 듣기';
                 };
                 
-                // --- ★★★ 수정된 부분 ★★★ ---
                 audioPlayer.onended = () => {
                     if (player) {
                         player.stopVideo();
