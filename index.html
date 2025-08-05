@@ -309,7 +309,6 @@
 
         /* 데스크톱 화면(1801px 이상)을 위한 스타일 */
         @media (min-width: 1801px) {
-            /* ★★★ 레이아웃 유지를 위해 visibility: hidden 사용 ★★★ */
             #lyrics-zoom-guide,
             #sub-controls-container {
                 visibility: hidden;
@@ -508,7 +507,7 @@
             });
 
             backBtn.onclick = returnToSearchView;
-
+            
             // ★★★ '중단' 버튼 로직 수정 ★★★
             stopBtn.onclick = () => {
                 if (isSinging) {
@@ -530,7 +529,7 @@
                     stopBtn.disabled = true;
                 }
             };
-
+            
             startBtn.onclick = startSinging;
 
             const echoButtons = document.querySelectorAll('.echo-btn-mobile, .echo-btn-desktop');
