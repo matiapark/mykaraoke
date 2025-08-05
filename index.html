@@ -457,7 +457,7 @@
 
         // --- 전역 DOM 요소 변수 ---
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
-        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
+        let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert, ytplayerElement;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
         let audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls;
 
@@ -487,6 +487,7 @@
             subControlsContainer = document.getElementById('sub-controls-container');
             playSyncBtn = document.getElementById('play-sync-btn');
             customAudioControls = document.getElementById('custom-audio-controls');
+            ytplayerElement = document.getElementById('ytplayer');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -599,10 +600,8 @@
                     audioPlayer.currentTime = 0;
                 }
                 
-                if (player && typeof player.pauseVideo === 'function') {
-                    player.pauseVideo();
-                    player.seekTo(0, true);
-                }
+                if (ytplayerElement) ytplayerElement.style.visibility = 'hidden';
+
                 if (playSyncBtn) {
                     playSyncBtn.textContent = '▶️ 듣기';
                 }
@@ -638,7 +637,10 @@
                 }
                 
                 if (isSinging) {
-                    stopSinging(false); 
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        isStoppingManually = false; 
+                        mediaRecorder.stop();
+                    }
                 }
                 
                 if (isPlaylistMode) {
@@ -656,6 +658,8 @@
             if (isPreparing) return;
             isPreparing = true;
             
+            if (ytplayerElement) ytplayerElement.style.visibility = 'visible';
+
             currentSongData = songData;
             searchView.style.display = 'none';
             karaokeView.style.display = 'block';
@@ -862,11 +866,17 @@
             if (!isSinging) return;
             isStoppingManually = manual;
 
+            if (manual && player) {
+                player.stopVideo();
+            }
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
-            if (player) player.stopVideo();
-            await cleanupAudioResources();
+
+            if (manual) {
+                await cleanupAudioResources();
+            }
         }
 
         async function returnToSearchView() {
@@ -936,6 +946,7 @@
             if (!audioPlayer || !player || !audioPlayer.src) return;
 
             if (audioPlayer.paused) {
+                if (ytplayerElement) ytplayerElement.style.visibility = 'visible';
                 enableNoSleep();
                 noSleep.enable();
                 stopBtn.disabled = false;
