@@ -275,21 +275,21 @@
         #downloadBtn { background-color: #007bff; }
         #downloadBtn:hover { background-color: #0056b3; }
         
-        /* --- ★ 2. 슬립모드 메시지 스타일 수정 --- */
+        /* --- [수정됨] 슬립모드 안내 메시지 스타일 --- */
         #keep-awake-alert {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7); /* 반투명 검정 배경 */
+            background-color: rgba(0, 0, 0, 0.75); /* 반투명 검정 배경 */
             color: white; /* 흰색 글씨 */
-            padding: 15px;
-            border-radius: 10px; /* 사각 박스 형태로 변경 */
+            padding: 8px 18px;
+            border-radius: 10px; /* 사각 박스 */
             z-index: 1000;
             display: none;
             text-align: center;
             white-space: normal;
-            line-height: 1.5;
+            line-height: 1.4;
             max-width: 90%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
@@ -309,11 +309,11 @@
             #keep-awake-alert {
                 width: 90%;
                 font-size: 14px;
-                padding: 10px 16px;
+                padding: 6px 16px;
             }
         }
 
-        /* --- ★ 1. 데스크톱 분기점 1801px로 수정 --- */
+        /* --- [수정됨] 데스크톱 화면(1801px 이상)을 위한 스타일 --- */
         @media (min-width: 1801px) {
             /* 1. 안내 문구들 숨기기 */
             #lyrics-zoom-guide,
@@ -328,7 +328,7 @@
             }
         }
 
-        /* --- ★ 1. 스마트폰/태블릿 분기점 1800px로 수정 --- */
+        /* --- [수정됨] 스마트폰/태블릿 화면(1800px 이하)을 위한 스타일 --- */
         @media (max-width: 1800px) {
             /* 1. 데스크톱용 에코 버튼 숨기기 */
             .echo-btn-desktop {
