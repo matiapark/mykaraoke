@@ -1024,13 +1024,14 @@
                 
                 playSyncBtn.textContent = '▶️ 듣기';
 
+                // ★★★ 수정된 부분 ★★★
                 audioPlayer.onplay = () => {
                     playSyncBtn.textContent = '⏸️ 중지';
                     if (recommendationOverlay) recommendationOverlay.style.display = 'none';
                 };
                 
                 audioPlayer.onpause = () => {
-                    if (audioPlayer.ended) return; // 재생이 끝나서 멈춘 경우는 제외
+                    if (audioPlayer.ended) return; 
                     if (isSyncPlaying) {
                         player.pauseVideo();
                         isSyncPlaying = false;
@@ -1335,3 +1336,5 @@
     </script>
 </body>
 </html>
+}
+'중단' 버튼의 기본 배경색과 마우스를 올렸을때의 배경색을 바꾸어줘.
