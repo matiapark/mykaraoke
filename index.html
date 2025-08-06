@@ -7,6 +7,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <title>나의 노래방</title>
+    
+    <link rel="icon" type="image/png" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/mykaraoke_favicon.png">
+    <link rel="apple-touch-icon" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/mykaraoke_favicon.png">
     <script src="https://unpkg.com/nosleep.js@0.12.0/dist/NoSleep.min.js"></script>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <style>
@@ -293,16 +296,23 @@
             line-height: 1.4;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-
+        
+        /* --- ★★★ 수정된 부분 시작 ★★★ --- */
+        /* '에코' 버튼 기본 활성화 상태 */
+        .echo-btn-desktop, .echo-btn-mobile {
+            background-color: #17a2b8;
+        }
+        /* 활성화된 '에코' 버튼에 마우스를 올렸을 때의 효과 */
         .echo-btn-desktop:hover:not(:disabled), .echo-btn-mobile:hover:not(:disabled) {
             transform: scale(1.05);
             background-color: #138496;
         }
+        /* 비활성화된 '에코' 버튼 */
         .echo-btn-desktop:disabled, .echo-btn-mobile:disabled {
             cursor: not-allowed;
-            /* --- ★★★ 수정된 부분 ★★★ --- */
             background-color: #555;
         }
+        /* --- ★★★ 수정된 부분 끝 ★★★ --- */
         
         @media (max-width: 600px) {
             #search-view { margin-top: 20px; padding: 20px; }
@@ -387,7 +397,7 @@
         </div>
         
         <div id="sub-controls-container" style="display: flex; justify-content: space-between; align-items: center; margin: 15px auto; padding: 0 5px; position: relative;">
-            <button id="echo-settings-btn" class="echo-btn-mobile" style="padding: 6px 12px; font-size: 14px; background-color: #17a2b8; margin: 0; position: absolute; left: 20px;">🎛️ 에코</button>
+            <button id="echo-settings-btn" class="echo-btn-mobile" style="padding: 6px 12px; font-size: 14px; margin: 0; position: absolute; left: 20px;">🎛️ 에코</button>
             <div id="power-guide" style="cursor: pointer; color: #e0e0e0; font-size: 14px; opacity: 0.8; margin-left: auto;">
                 <span>ℹ️ 기능 및 유의사항 안내</span>
             </div>
@@ -396,7 +406,7 @@
         <footer>
           <div id="main-controls-container">
             <div>
-              <button id="echo-settings-btn-desktop" class="echo-btn-desktop" style="background-color: #17a2b8;">🎛️ 에코</button>
+              <button id="echo-settings-btn-desktop" class="echo-btn-desktop">🎛️ 에코</button>
               <button id="startBtn" disabled>▶ 시작</button>
               <button id="stopBtn" disabled>⏹ 중단</button>
               <button id="backBtn">🔍 선곡</button>
