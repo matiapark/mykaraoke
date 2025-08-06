@@ -562,7 +562,7 @@
             
             playSyncBtn.addEventListener('click', toggleSyncPlay);
 
-            // ★★★ 수정된 부분: 오디오 플레이어 이벤트 핸들러를 이곳으로 이동 ★★★
+            // ★★★ 수정된 부분: 오디오 플레이어 이벤트 핸들러 추가 ★★★
             const audioPlayer = document.getElementById('recordedAudio');
             if (audioPlayer) {
                 audioPlayer.onplay = () => {
