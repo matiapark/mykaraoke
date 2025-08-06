@@ -296,11 +296,12 @@
 
         .echo-btn-desktop:hover:not(:disabled), .echo-btn-mobile:hover:not(:disabled) {
             transform: scale(1.05);
-            /* --- ★★★ 수정된 부분 ★★★ --- */
-            background-color: #138496; /* 더 어두운 청록색으로 변경 */
+            background-color: #138496;
         }
         .echo-btn-desktop:disabled, .echo-btn-mobile:disabled {
             cursor: not-allowed;
+            /* --- ★★★ 수정된 부분 ★★★ --- */
+            background-color: #555;
         }
         
         @media (max-width: 600px) {
