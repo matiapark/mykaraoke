@@ -273,7 +273,6 @@
         #backBtn:hover { background-color: #007bff; transform: scale(1.05); }
         #resultArea { margin-top: 20px; }
         
-        #lyrics-zoom-guide { color: #e0e0e0; font-size: 14px; margin: 15px 0; opacity: 0.8; }
         #headphone-guide { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 15px; margin: 20px auto; background-color: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; max-width: 90%; }
         #headphone-guide .guide-icon { font-size: 2em; color: #17A2B8; }
         #headphone-guide p { margin: 0; font-size: 14px; line-height: 1.5; color: #f0f0f0; text-align: left; }
@@ -333,14 +332,11 @@
             .result-item { padding: 10px 15px; }
             .result-item .title { font-size: 1em; }
             .result-item .artist { font-size: 0.8em; }
-            #lyrics-zoom-guide { font-size: 12px; }
-            #headphone-guide { flex-direction: column; gap: 10px; padding: 12px; }
             #headphone-guide p { text-align: center; font-size: 12px; }
             .view-toggle-buttons { flex-wrap: wrap; }
         }
 
         @media (min-width: 769px) {
-            #lyrics-zoom-guide,
             #power-guide,
             #keep-awake-alert {
                 display: none !important;
@@ -402,9 +398,6 @@
         <div id="playerContainer">
           <div id="ytplayer"></div>
           <div id="recommendation-overlay" style="display: none;"></div>
-        </div>
-        <div id="lyrics-zoom-guide">
-            💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
         </div>
         <div id="headphone-guide" style="display: none;">
             <span class="guide-icon">🎧</span>
@@ -1024,7 +1017,6 @@
                 
                 playSyncBtn.textContent = '▶️ 듣기';
 
-                // ★★★ 수정된 부분 ★★★
                 audioPlayer.onplay = () => {
                     playSyncBtn.textContent = '⏸️ 중지';
                     if (recommendationOverlay) recommendationOverlay.style.display = 'none';
@@ -1337,4 +1329,4 @@
 </body>
 </html>
 }
-'중단' 버튼의 기본 배경색과 마우스를 올렸을때의 배경색을 바꾸어줘.
+'중단' 버튼의 배경색 기본과 마우스 올렸을때를 바꾸어줘
