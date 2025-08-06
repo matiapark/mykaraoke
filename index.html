@@ -8,10 +8,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>나의 노래방</title>
     
-    <link rel="icon" type="image/png" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/favicon_32x32.png">
-    <link rel="icon" type="image/png" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/favicon_192x192.png">
-    <link rel="apple-touch-icon" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/favicon_32x32.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/favicon_32x32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/favicon_192x192.png">
     <link rel="apple-touch-icon" href="https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/favicon_192x192.png">
+
     <script src="https://unpkg.com/nosleep.js@0.12.0/dist/NoSleep.min.js"></script>
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <style>
@@ -299,22 +299,33 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         
-        /* --- ★★★ 수정된 부분 시작 ★★★ --- */
-        /* '에코' 버튼 기본 활성화 상태 */
         .echo-btn-desktop, .echo-btn-mobile {
             background-color: #17a2b8;
         }
-        /* 활성화된 '에코' 버튼에 마우스를 올렸을 때의 효과 */
         .echo-btn-desktop:hover:not(:disabled), .echo-btn-mobile:hover:not(:disabled) {
             transform: scale(1.05);
             background-color: #138496;
         }
-        /* 비활성화된 '에코' 버튼 */
         .echo-btn-desktop:disabled, .echo-btn-mobile:disabled {
             cursor: not-allowed;
             background-color: #555;
         }
-        /* --- ★★★ 수정된 부분 끝 ★★★ --- */
+
+        /* ★★★ 추가된 오버레이 스타일 시작 ★★★ */
+        #recommendation-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%;
+            background-image: url('https://karaoke-korean.s3.ap-northeast-2.amazonaws.com/overlay.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 10;
+            pointer-events: none; /* 오버레이가 클릭 이벤트를 가로채지 않도록 설정 */
+        }
+        /* ★★★ 추가된 오버레이 스타일 끝 ★★★ */
         
         @media (max-width: 600px) {
             #search-view { margin-top: 20px; padding: 20px; }
@@ -344,6 +355,9 @@
         @media (max-width: 768px) {
             .echo-btn-desktop {
                 display: none;
+            }
+            #recommendation-overlay {
+                display: none !important;
             }
         }
     </style>
@@ -389,6 +403,7 @@
         </header>
         <div id="playerContainer">
           <div id="ytplayer"></div>
+          <div id="recommendation-overlay" style="display: none;"></div>
         </div>
         <div id="lyrics-zoom-guide">
             💡 노래 가사 글자 크기가 작으면 화면을 확대하시면 됩니다.
@@ -467,7 +482,7 @@
         let searchView, karaokeView, searchInput, searchButton, searchResultsUl, loadMoreBtn, playlistControls;
         let startBtn, stopBtn, backBtn, micErrorMessage, headphoneGuide, keepAwakeAlert;
         let noSleepVideo, showSearchBtn, showFavoritesBtn, showRecentsBtn, showPlaylistBtn, startPlaylistBtn;
-        let audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls;
+        let audioSettingsPanel, subControlsContainer, playSyncBtn, customAudioControls, recommendationOverlay;
 
         // --- 초기화 로직 ---
         window.onload = () => {
@@ -495,6 +510,8 @@
             subControlsContainer = document.getElementById('sub-controls-container');
             playSyncBtn = document.getElementById('play-sync-btn');
             customAudioControls = document.getElementById('custom-audio-controls');
+            // ★★★ 추가된 부분 ★★★
+            recommendationOverlay = document.getElementById('recommendation-overlay');
 
             if (canvas) {
                 canvas.width = window.innerWidth;
@@ -532,7 +549,9 @@
                     stopSinging(true);
                 } 
                 else {
+                    if (player) player.stopVideo();
                     resetState();
+                    
                     if(startBtn) startBtn.disabled = false;
                     if(stopBtn) stopBtn.disabled = true;
                     if(subControlsContainer) subControlsContainer.style.display = 'flex';
@@ -545,6 +564,7 @@
             const echoButtons = document.querySelectorAll('.echo-btn-mobile, .echo-btn-desktop');
             echoButtons.forEach(button => {
                 button.addEventListener('click', () => {
+                    if(button.disabled) return;
                     const isVisible = audioSettingsPanel.style.display === 'block';
                     audioSettingsPanel.style.display = isVisible ? 'none' : 'block';
                 });
@@ -592,7 +612,7 @@
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('ytplayer', {
                 height: '360', width: '640',
-                playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3 },
+                playerVars: { controls: 0, modestbranding: 1, fs: 0, iv_load_policy: 3, rel: 0 },
                 events: { 
                     'onReady': () => console.log("✅ YouTube 준비됨"),
                     'onStateChange': onPlayerStateChange 
@@ -643,6 +663,7 @@
             }
         
             if (event.data === YT.PlayerState.ENDED) {
+                if (recommendationOverlay) recommendationOverlay.style.display = 'block';
                 if (isSyncPlaying) {
                     resetSyncPlay();
                     return; 
@@ -1007,8 +1028,10 @@
                 
                 playSyncBtn.textContent = '▶️ 듣기';
 
+                // ★★★ 수정된 부분 ★★★
                 audioPlayer.onplay = () => {
                     playSyncBtn.textContent = '⏸️ 중지';
+                    if (recommendationOverlay) recommendationOverlay.style.display = 'none';
                 };
                 
                 audioPlayer.onpause = () => {
@@ -1017,9 +1040,15 @@
                         isSyncPlaying = false;
                     }
                     playSyncBtn.textContent = '▶️ 듣기';
+                    if (recommendationOverlay) recommendationOverlay.style.display = 'block';
                 };
                 
-                audioPlayer.onended = () => {};
+                audioPlayer.onended = () => {
+                    if (player) {
+                        player.stopVideo();
+                    }
+                    playSyncBtn.textContent = '▶️ 듣기';
+                };
             };
         }
 
@@ -1052,6 +1081,8 @@
                 recordedAudio.src = "";
             }
             if(audioSettingsPanel) audioSettingsPanel.style.display = 'none';
+            // ★★★ 추가된 부분 ★★★
+            if (recommendationOverlay) recommendationOverlay.style.display = 'none';
             clearVisualizer();
         }
 
