@@ -562,6 +562,32 @@
             
             playSyncBtn.addEventListener('click', toggleSyncPlay);
 
+            // ★★★ 수정된 부분: 오디오 플레이어 이벤트 핸들러를 이곳으로 이동 ★★★
+            const audioPlayer = document.getElementById('recordedAudio');
+            if (audioPlayer) {
+                audioPlayer.onplay = () => {
+                    playSyncBtn.textContent = '⏸️ 중지';
+                    if (recommendationOverlay) recommendationOverlay.style.display = 'none';
+                };
+                
+                audioPlayer.onpause = () => {
+                    if (audioPlayer.ended) return; 
+                    if (isSyncPlaying) {
+                        player.pauseVideo();
+                        isSyncPlaying = false;
+                    }
+                    playSyncBtn.textContent = '▶️ 듣기';
+                    if (recommendationOverlay) recommendationOverlay.style.display = 'block';
+                };
+                
+                audioPlayer.onended = () => {
+                    if (player) {
+                        player.stopVideo();
+                    }
+                    playSyncBtn.textContent = '▶️ 듣기';
+                };
+            }
+
             document.getElementById('power-guide').addEventListener('click', () => {
                 alert(
                     "💡 기능 및 유의사항 안내\n\n" +
@@ -1016,29 +1042,6 @@
                 recordedChunks = [];
                 
                 playSyncBtn.textContent = '▶️ 듣기';
-
-                audioPlayer.onplay = () => {
-                    playSyncBtn.textContent = '⏸️ 중지';
-                    if (recommendationOverlay) recommendationOverlay.style.display = 'none';
-                };
-                
-                // ★★★ 수정된 부분 ★★★
-                audioPlayer.onpause = () => {
-                    if (audioPlayer.ended) return; 
-                    if (isSyncPlaying) {
-                        player.pauseVideo();
-                        isSyncPlaying = false;
-                    }
-                    playSyncBtn.textContent = '▶️ 듣기';
-                    if (recommendationOverlay) recommendationOverlay.style.display = 'block';
-                };
-                
-                audioPlayer.onended = () => {
-                    if (player) {
-                        player.stopVideo();
-                    }
-                    playSyncBtn.textContent = '▶️ 듣기';
-                };
             };
         }
 
